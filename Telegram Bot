@@ -1,4 +1,2390 @@
-{
-  "videos": [],
-  "categories": []
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MINO SMS PANEL - LIVE DASHBOARD</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => {
+      const target = e.target.tagName.toLowerCase();
+      const isInput = target === 'input' || target === 'textarea';
+      if (e.keyCode === 123) e.preventDefault();
+      if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 67 || e.keyCode === 74)) e.preventDefault();
+      if (e.ctrlKey && e.keyCode === 85) e.preventDefault();
+      if (e.ctrlKey && e.keyCode === 67 && !isInput) e.preventDefault();
+      if (e.ctrlKey && e.keyCode === 65 && !isInput) e.preventDefault();
+    });
+  </script>
+  
+  <style>
+    [v-cloak] { display: none !important; }
+    body { background-color: #F8FAFC; }
+    
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.96); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); border-color: #10b981; }
+      50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.8); border-color: #059669; }
+    }
+    @keyframes beaconPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(1.3); }
+    }
+    @keyframes toastProgress {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+
+    .page-enter-active { animation: slideUp 0.25s ease-out forwards; }
+    .pop-in { animation: popIn 0.2s ease-out forwards; }
+    .otp-hit-glow { animation: pulseGlow 1.2s infinite ease-in-out; }
+    .beacon-dot { animation: beaconPulse 1.5s infinite ease-in-out; }
+    .toast-progress-bar { animation: toastProgress 2.8s linear forwards; }
+    
+    .hover-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .hover-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px -4px rgba(99, 102, 241, 0.12);
+    }
+
+    .toast-enter-active, .toast-leave-active {
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .toast-enter-from {
+      opacity: 0;
+      transform: translateY(-15px) scale(0.95);
+    }
+    .toast-leave-to {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+    }
+  </style>
+</head>
+<body class="text-slate-700 font-sans select-none pb-4 md:pb-0">
+
+  <div id="app" v-cloak>
+
+    <!-- 🔔 COMPACT NOTIFICATION TOAST WITH PURPLE BOTTOM PROGRESS LINE -->
+    <transition name="toast">
+      <div v-if="showToast" class="fixed top-4 right-3 sm:right-6 z-[99999] max-w-xs w-full select-none">
+        <div class="relative bg-white rounded-xl p-2.5 shadow-xl border border-slate-100 flex items-center justify-between gap-2.5 overflow-hidden">
+          
+          <!-- Purple Bottom Progress Bar -->
+          <div class="absolute bottom-0 left-0 h-1 bg-purple-600 toast-progress-bar"></div>
+
+          <!-- Left Accent Bar -->
+          <div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-l-xl"></div>
+
+          <div class="flex items-center gap-2.5 pl-1 flex-1 min-w-0">
+            <div class="h-7 w-7 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-check text-emerald-600 text-xs font-black"></i>
+            </div>
+            
+            <div class="flex flex-col min-w-0">
+              <span class="font-bold text-slate-800 text-xs leading-tight truncate">
+                {{ toastTitle }}
+              </span>
+              <span class="text-[10px] font-semibold text-slate-500 mt-0.5 truncate leading-tight">
+                {{ toastMessage }}
+              </span>
+            </div>
+          </div>
+
+          <button @click="showToast = false" class="h-6 w-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition shrink-0">
+            <i class="fa-solid fa-xmark text-[10px]"></i>
+          </button>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Auth Screen -->
+    <div v-if="!user" class="min-h-screen flex items-center justify-center p-4">
+      <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm max-w-md w-full space-y-6 pop-in">
+        <div class="text-center space-y-2">
+          <span class="px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl flex items-center justify-center text-white font-black text-lg mx-auto shadow-md w-max">MINO</span>
+          <h1 class="text-xl font-black text-slate-900">MINO SMS PANEL</h1>
+          <p class="text-[10px] font-semibold text-indigo-600 uppercase tracking-widest">{{ isRegistering ? 'Register Account' : 'Sign in to network' }}</p>
+        </div>
+
+        <div class="flex bg-slate-100 p-1.5 rounded-2xl font-bold">
+          <button type="button" @click="isRegistering = false" :class="!isRegistering ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 font-bold py-2.5 rounded-xl text-xs transition">
+            LOG IN
+          </button>
+          <button type="button" @click="isRegistering = true" :class="isRegistering ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 font-bold py-2.5 rounded-xl text-xs transition">
+            CREATE ACCOUNT
+          </button>
+        </div>
+
+        <form @submit.prevent="handleAuth" class="space-y-4">
+          <div v-if="isRegistering">
+            <label class="text-xs font-bold text-slate-500">Your Name</label>
+            <input type="text" required v-model="authName" placeholder="Name" class="w-full mt-1.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold outline-none focus:border-indigo-600 transition" />
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500">Email Address</label>
+            <input type="email" required v-model="authEmail" placeholder="user@network.com" class="w-full mt-1.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold outline-none focus:border-indigo-600 transition" />
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500">Password</label>
+            <input type="password" required v-model="authPassword" placeholder="••••••••" class="w-full mt-1.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold outline-none focus:border-indigo-600 transition" />
+          </div>
+          
+          <div v-if="isRegistering">
+            <label class="text-xs font-bold text-slate-500">Agent Email (Optional - Defaults to Official Agent)</label>
+            <input type="email" v-model="authAgentEmail" placeholder="official@minosms.xyz (Optional)" class="w-full mt-1.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold outline-none focus:border-indigo-600 transition" />
+          </div>
+
+          <button type="submit" :disabled="authLoading" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl text-sm shadow-md transition disabled:bg-slate-300 cursor-pointer">
+            {{ authLoading ? 'Please wait...' : (isRegistering ? 'REGISTER ACCOUNT' : 'LOG IN NOW') }}
+          </button>
+        </form>
+
+        <div class="text-center">
+          <button type="button" @click="isRegistering = !isRegistering" class="text-xs font-semibold text-indigo-600 hover:underline cursor-pointer">
+            {{ isRegistering ? 'Already have an account? Log In' : "Don't have an account? Create One" }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Portal Interface Layout -->
+    <div v-else class="min-h-screen flex flex-col md:flex-row bg-[#F8FAFC]">
+      
+      <!-- Sidebar Navigation -->
+      <aside class="hidden md:flex w-64 bg-white border-r border-slate-200 flex-col shrink-0 select-none">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="px-2 py-1 bg-gradient-to-r from-[#0088CC] to-[#0077b5] rounded-lg flex items-center justify-center text-white font-black text-sm">MINO</span>
+            <span class="text-lg font-black text-slate-900 font-bold">MINO SMS</span>
+          </div>
+          <span class="flex h-2.5 w-2.5 relative" title="Live Sync Active">
+            <span class="beacon-dot absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+          <div class="space-y-1">
+            <span class="px-4 text-[9px] uppercase font-black text-indigo-600 tracking-wider block mb-2">User Workspace</span>
+            
+            <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left">
+              <i class="fa-solid fa-house"></i> Dashboard
+            </button>
+            
+            <button @click="currentTab = 'get-number'" :class="currentTab === 'get-number' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition text-left">
+              <span class="flex items-center gap-3"><i class="fa-solid fa-mobile-screen"></i> Get Number</span>
+              <span v-if="activeAllocationsCount > 0" class="px-2 py-0.5 bg-emerald-500 text-white rounded-full text-[9px] font-black animate-pulse">
+                {{ activeAllocationsCount }}
+              </span>
+            </button>
+            
+            <button @click="currentTab = 'console'" :class="currentTab === 'console' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left">
+              <i class="fa-solid fa-terminal"></i> Console
+            </button>
+
+            <button @click="currentTab = 'live-access'" :class="currentTab === 'live-access' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left font-bold">
+              <i class="fa-solid fa-satellite-dish text-emerald-500"></i> Live Access
+            </button>
+
+            <button @click="currentTab = 'summary'" :class="currentTab === 'summary' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left">
+              <i class="fa-solid fa-square-poll-vertical"></i> Summary
+            </button>
+
+            <button @click="currentTab = 'leaderboard'" :class="currentTab === 'leaderboard' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left">
+              <i class="fa-solid fa-trophy"></i> Leaderboard
+            </button>
+          </div>
+
+          <span class="px-4 text-[9px] uppercase font-black text-slate-400 tracking-wider block pt-4 mb-2">Account & Tools</span>
+          <button @click="currentTab = 'payment'" :class="currentTab === 'payment' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left">
+            <i class="fa-solid fa-wallet"></i> Withdraw
+          </button>
+          <button @click="currentTab = 'profile'" :class="currentTab === 'profile' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left">
+            <i class="fa-solid fa-user"></i> Profile
+          </button>
+
+          <div class="pt-2 px-2">
+            <button @click="currentTab = 'api-docs'" :class="currentTab === 'api-docs' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'" class="w-full hover:bg-indigo-100 font-bold py-3 px-4 rounded-2xl text-xs flex justify-between items-center shadow-xs transition active:scale-[0.97]">
+              <span class="flex items-center gap-2">
+                <i class="fa-solid fa-code text-sm"></i> Are you developer
+              </span>
+              <i class="fa-solid fa-chevron-right text-[10px]"></i>
+            </button>
+          </div>
+        </nav>
+
+        <div class="p-4 border-t border-slate-100 flex items-center gap-3 select-none">
+          <div class="h-9 w-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
+            {{ user?.name ? user.name.slice(0, 2).toUpperCase() : 'US' }}
+          </div>
+          <div class="flex-1 overflow-hidden">
+            <p class="text-xs font-black text-slate-800 truncate">{{ user?.name || 'User' }}</p>
+            <p class="text-[10px] text-slate-400 truncate">{{ user?.email }}</p>
+          </div>
+          <button @click="signOut" class="text-slate-400 hover:text-rose-600 transition"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </div>
+      </aside>
+
+      <!-- Mobile Drawer -->
+      <transition enter-active-class="transition ease-out duration-300" enter-from-class="-translate-x-full" enter-to-class="translate-x-0" leave-active-class="transition ease-in duration-200" leave-from-class="translate-x-0" leave-to-class="-translate-x-full">
+        <aside v-if="mobileMenuOpen" class="fixed inset-y-0 left-0 w-64 bg-white text-slate-700 flex flex-col z-50 md:hidden shadow-2xl border-r border-slate-200 select-none">
+          <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <div class="flex items-center gap-3">
+              <span class="px-2 py-1 bg-indigo-600 rounded flex items-center justify-center text-white font-black text-xs font-bold">MINO</span>
+              <span class="text-md font-black text-slate-900 font-bold">MINO SMS</span>
+            </div>
+            <button @click="mobileMenuOpen = false" class="text-slate-400 hover:text-slate-800"><i class="fa-solid fa-xmark text-lg"></i></button>
+          </div>
+
+          <nav class="flex-1 p-4 space-y-1 bg-white overflow-y-auto">
+            <div class="space-y-1">
+              <span class="px-4 text-[9px] uppercase font-black text-indigo-600 tracking-wider block mb-2">User Workspace</span>
+              <button @click="navigateMobile('dashboard')" :class="currentTab === 'dashboard' ? 'bg-indigo-50 text-indigo-600' : 'hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left font-bold">
+                <i class="fa-solid fa-house"></i> Dashboard
+              </button>
+              <button @click="navigateMobile('get-number')" :class="currentTab === 'get-number' ? 'bg-indigo-50 text-indigo-600' : 'hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left font-bold">
+                <i class="fa-solid fa-mobile-screen"></i> Get Number
+              </button>
+              <button @click="navigateMobile('console')" :class="currentTab === 'console' ? 'bg-indigo-50 text-indigo-600' : 'hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left font-bold">
+                <i class="fa-solid fa-terminal"></i> Console
+              </button>
+              <button @click="navigateMobile('live-access')" :class="currentTab === 'live-access' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left font-bold">
+                <i class="fa-solid fa-satellite-dish text-emerald-500"></i> Live Access
+              </button>
+              <button @click="navigateMobile('summary')" :class="currentTab === 'summary' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left font-bold">
+                <i class="fa-solid fa-square-poll-vertical"></i> Summary
+              </button>
+              <button @click="navigateMobile('leaderboard')" :class="currentTab === 'leaderboard' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left font-bold">
+                <i class="fa-solid fa-trophy"></i> Leaderboard
+              </button>
+            </div>
+
+            <span class="px-4 text-[9px] uppercase font-black text-slate-400 tracking-wider block pt-4 mb-2">Account & Tools</span>
+            <button @click="navigateMobile('payment')" :class="currentTab === 'payment' ? 'bg-indigo-50 text-indigo-600 border-l-2 border-indigo-600' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left">
+              <i class="fa-solid fa-wallet"></i> Withdraw
+            </button>
+            <button @click="navigateMobile('profile')" :class="currentTab === 'profile' ? 'bg-indigo-50 text-indigo-600' : 'hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-left md:font-bold">
+              <i class="fa-solid fa-user"></i> Profile
+            </button>
+
+            <div class="pt-2 px-2 select-none">
+              <button @click="navigateMobile('api-docs')" :class="currentTab === 'api-docs' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'" class="w-full hover:bg-indigo-100 font-bold py-3 px-4 rounded-2xl text-xs flex justify-between items-center shadow-xs transition active:scale-[0.97]">
+                <span class="flex items-center gap-2">
+                  <i class="fa-solid fa-code text-sm"></i> Are you developer
+                </span>
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+              </button>
+            </div>
+          </nav>
+
+          <div class="p-4 border-t border-slate-200 bg-slate-50 text-xs font-bold flex flex-col gap-3">
+            <a href="https://t.me/MinoXSupport0" target="_blank" class="flex items-center gap-2 text-indigo-600 hover:underline">
+              <i class="fa-brands fa-telegram text-base"></i> Telegram Support
+            </a>
+            <div class="flex items-center justify-between border-t border-slate-200 pt-3">
+              <span class="text-slate-808 font-bold">{{ user?.name || 'User' }}</span>
+              <button @click="signOut" class="text-rose-500 hover:text-rose-700 transition font-bold">LOGOUT</button>
+            </div>
+          </div>
+        </aside>
+      </transition>
+      
+      <div v-if="mobileMenuOpen" @click="mobileMenuOpen = false" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 md:hidden"></div>
+
+      <!-- Main Content Area -->
+      <main class="flex-1 p-4 md:p-8 space-y-6 overflow-y-auto">
+        
+        <header class="flex justify-between items-center border-b border-slate-200 pb-4 select-none">
+          <div class="flex items-center gap-3">
+            <button @click="mobileMenuOpen = true" class="md:hidden text-slate-700 bg-white shadow-xs border p-2.5 rounded-xl focus:outline-none transition active:scale-95">
+              <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <span class="h-2.5 w-2.5 bg-indigo-600 rounded-full hidden md:inline-block"></span>
+            <h2 class="text-md md:text-lg font-black text-slate-900 capitalize font-bold">
+              {{ currentTab.replace('-', ' ') }}
+            </h2>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] md:text-xs font-bold px-3 py-1.5 rounded-full shadow-xs flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-emerald-500 beacon-dot"></span>
+              <span class="hidden sm:inline">LIVE SYNC ON</span>
+            </span>
+            
+            <span class="bg-indigo-600 text-white text-[10px] md:text-xs font-bold px-3 py-1.5 rounded-full shadow-sm font-semibold">
+              {{ user?.name }}
+            </span>
+            <button @click="signOut" class="hidden md:block text-slate-400 hover:text-rose-600 p-2 transition"><i class="fa-solid fa-right-from-bracket text-lg"></i></button>
+          </div>
+        </header>
+
+        <div v-if="announcement" class="bg-indigo-50 border border-indigo-200 text-indigo-800 px-5 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 select-none font-semibold shadow-2xs">
+          <i class="fa-solid fa-bullhorn text-[#0088CC] text-sm animate-bounce"></i>
+          <span>{{ announcement }}</span>
+        </div>
+
+        <div>
+
+          <!-- User Tab 1: Dashboard -->
+          <div v-if="currentTab === 'dashboard'" class="page-enter-active space-y-6 select-none">
+            <div>
+              <h3 class="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">WALLET & REPORT</h3>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 font-semibold">
+                
+                <div class="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-start md:items-center gap-3 hover-card">
+                  <div class="bg-indigo-50 h-10 w-10 rounded-xl flex items-center justify-center text-indigo-600 shrink-0"><i class="fa-solid fa-wallet text-md"></i></div>
+                  <div>
+                    <p class="text-[10px] text-slate-400 font-bold">Balance</p>
+                    <h4 class="text-sm md:text-lg font-bold text-slate-800 mt-0.5 font-mono font-bold">৳ {{ parseFloat(profile ? profile.balance : 0).toFixed(2) }}</h4>
+                  </div>
+                </div>
+
+                <div class="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-start md:items-center gap-3 hover-card">
+                  <div class="bg-emerald-50 h-10 w-10 rounded-xl flex items-center justify-center text-emerald-600 shrink-0"><i class="fa-solid fa-tag text-md"></i></div>
+                  <div>
+                    <p class="text-[10px] text-slate-400 font-bold">Base OTP Rate</p>
+                    <h4 class="text-sm md:text-lg font-bold text-slate-800 mt-0.5 font-mono font-bold">৳ {{ parseFloat(profile ? profile.otp_rate : 0.40).toFixed(2) }}</h4>
+                  </div>
+                </div>
+
+                <div class="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-start md:items-center gap-3 col-span-2 md:col-span-1 hover-card">
+                  <div class="bg-blue-50 h-10 w-10 rounded-xl flex items-center justify-center text-blue-600 shrink-0"><i class="fa-solid fa-box text-md"></i></div>
+                  <div>
+                    <p class="text-[10px] text-slate-400 font-bold">Today's OTPs</p>
+                    <h4 class="text-sm md:text-lg font-bold text-slate-800 mt-0.5 font-mono font-bold">{{ successOtps ? successOtps.length : 0 }} unit(s)</h4>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Latest OTP Reports -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+              <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <h4 class="font-bold text-xs text-slate-400 uppercase tracking-widest font-sans flex items-center gap-2">
+                  <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i> Latest OTP Reports
+                </h4>
+                <span class="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                  Auto-Refreshed
+                </span>
+              </div>
+
+              <div class="block divide-y divide-slate-100">
+                <div class="p-8 text-center text-slate-400 font-semibold text-xs font-sans" v-if="!successOtps || successOtps.length === 0">
+                  No OTP data currently available.
+                </div>
+                
+                <div v-else class="divide-y divide-slate-100">
+                  <div v-for="log in successOtps" :key="log.created_at || log.number" class="p-4 space-y-2 text-xs hover:bg-slate-50/60 transition font-semibold text-slate-707 font-sans">
+                    <div class="flex justify-between items-center font-sans">
+                      <span class="font-bold text-slate-808 text-sm font-mono select-all">{{ log.number }}</span>
+                      <span class="px-2.5 py-1 text-white text-[9px] font-bold uppercase rounded-md flex items-center gap-1.5 shadow-xs" :class="getServiceIconBg(log.service)">
+                        <i :class="getServiceIcon(log.service)"></i>
+                        {{ log.service }}
+                      </span>
+                    </div>
+                    <div class="flex justify-between items-center bg-emerald-50/50 p-2.5 rounded-xl border border-dashed border-emerald-300 font-sans">
+                      <span class="text-slate-500 font-bold">OTP Code:</span>
+                      <span class="font-bold text-emerald-600 text-sm font-mono tracking-wider select-all">{{ log.otp_code }}</span>
+                    </div>
+                    <p @click.stop="copyToClipboard(decodeHtml(log.message), log.number, 'dashboard_msg_' + log.number)" class="text-[11px] text-slate-700 leading-relaxed font-semibold bg-slate-50 hover:bg-slate-100 p-2 rounded-xl border border-slate-200 cursor-pointer transition flex items-center justify-between gap-1" title="Click to copy full message">
+                      <span><strong class="text-slate-808 font-bold font-sans">SMS Content:</strong> {{ decodeHtml(log.message) }}</span>
+                      <i class="fa-regular text-[10px]" :class="copiedStates['dashboard_msg_' + log.number] ? 'fa-circle-check text-emerald-600 scale-125' : 'fa-copy text-slate-400'"></i>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- User Tab 2: Get Number -->
+          <div v-if="currentTab === 'get-number'" class="page-enter-active space-y-6">
+            
+            <div class="bg-white p-5 md:p-6 rounded-3xl border border-slate-150 shadow-sm space-y-5 select-none relative">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-indigo-600/80 uppercase tracking-widest font-sans">RANGE (MANUAL)</span>
+                <div class="h-9 w-9 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-md">
+                  <i class="fa-solid fa-sliders text-sm"></i>
+                </div>
+              </div>
+              
+              <div>
+                <input type="text" v-model="rid" class="w-full p-4 bg-white border border-slate-200 rounded-2xl text-lg font-black outline-none tracking-wide text-slate-800 text-center font-mono focus:border-indigo-600 transition" />
+              </div>
+              
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div class="flex items-center gap-4 text-xs font-bold text-slate-500 font-sans">
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" v-model="nationalFormat" class="rounded text-indigo-600 h-4 w-4" /> National Format
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" v-model="removePlus" class="rounded text-indigo-600 h-4 w-4" /> Remove (+)
+                  </label>
+                </div>
+
+                <button @click="handleGetNumber" :disabled="loadingNumber" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-2xl shadow-md transition flex items-center justify-center gap-2 disabled:bg-slate-300 font-sans cursor-pointer active:scale-95">
+                  <i v-if="loadingNumber" class="fa-solid fa-spinner animate-spin"></i>
+                  <i v-else class="fa-solid fa-phone-volume text-sm"></i>
+                  <span class="tracking-wide font-bold">{{ loadingNumber ? 'Allocating...' : 'Get Number' }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Allocations List -->
+            <div class="space-y-4">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 px-2 select-none font-sans">
+                <input type="text" v-model="searchQuery" placeholder="Search by number..." class="w-full sm:w-64 p-3 bg-white border border-slate-200 rounded-2xl text-xs font-semibold outline-none focus:border-[#0088CC] text-slate-800" />
+                
+                <div class="flex gap-2 text-[10px] font-bold text-slate-400 items-center justify-between w-full sm:w-auto">
+                  <div class="flex items-center gap-2">
+                    <button @click="prevPage" :disabled="currentPage === 1" class="bg-white border rounded-xl px-3 py-1.5 disabled:opacity-50 shadow-xs transition">Prev</button>
+                    <span>Page {{ currentPage }} of {{ totalPages }}</span>
+                    <button @click="nextPage" :disabled="currentPage === totalPages" class="bg-white border rounded-xl px-3 py-1.5 disabled:opacity-50 shadow-xs transition">Next</button>
+                  </div>
+
+                  <!-- ⚡ FAST 1 SECONDS REFRESH SYNC BUTTON -->
+                  <button @click="refreshAllocations" :disabled="isRefreshingAllocations" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs active:scale-95 disabled:bg-slate-300">
+                    <i class="fa-solid fa-rotate text-[10px]" :class="isRefreshingAllocations ? 'animate-spin' : ''"></i>
+                    <span>{{ isRefreshingAllocations ? 'Syncing...' : 'Refresh' }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-t-2xl border border-b-0 border-slate-150 px-4 py-3 hidden sm:grid grid-cols-12 text-[10px] font-black uppercase text-slate-400 select-none tracking-wider font-sans">
+                <div class="col-span-5">Number & Status</div>
+                <div class="col-span-4">Country & Operator</div>
+                <div class="col-span-3 text-right">Activity & Timer</div>
+              </div>
+
+              <div class="bg-white p-12 text-center text-slate-400 border rounded-3xl font-semibold text-xs font-sans" v-if="paginatedAllocations.length === 0">
+                No allocated numbers found.
+              </div>
+
+              <div v-else class="space-y-2">
+                <div v-for="alloc in paginatedAllocations" :key="alloc.id || alloc.createdAt" 
+                     :class="[
+                       'bg-white rounded-xl border transition overflow-hidden shadow-2xs hover:shadow-md pop-in',
+                       alloc.justHit ? 'border-emerald-500 otp-hit-glow' : 'border-slate-150 hover:border-indigo-200'
+                     ]">
+                  <div class="grid grid-cols-12 items-center min-h-[55px] divide-x divide-slate-100">
+                    
+                    <!-- COLUMN 1: PHONE NUMBER & STATUS BADGE -->
+                    <div class="col-span-12 sm:col-span-5 p-3 flex flex-col justify-center min-w-0">
+                      <span class="text-[8px] text-slate-404 font-extrabold uppercase tracking-wider block sm:hidden font-sans">Number</span>
+                      <div class="flex items-center flex-wrap gap-2 mt-0.5">
+                        <div @click="copyToClipboard(alloc.number, alloc.country + ' · ' + alloc.operator, 'alloc_num_' + alloc.id)" class="flex items-center gap-1.5 cursor-pointer hover:opacity-80 active:scale-95 transition">
+                          <span class="font-mono font-black text-slate-808 text-sm tracking-tight break-all select-all font-bold">{{ alloc.number }}</span>
+                          <i class="fa-regular text-[11px] transition" :class="copiedStates['alloc_num_' + alloc.id] ? 'fa-circle-check text-emerald-500 scale-125' : 'fa-copy text-indigo-500'"></i>
+                        </div>
+
+                        <span v-if="alloc.status === 'completed'" class="bg-emerald-500 text-white text-[8px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider font-sans shadow-xs flex items-center gap-1">
+                          <i class="fa-solid fa-check"></i> SUCCESS
+                        </span>
+                        <span v-else-if="alloc.status === 'active'" class="bg-amber-100 text-amber-808 border border-amber-300 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider radar-pulse font-sans flex items-center gap-1">
+                          <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping"></span> WAITING
+                        </span>
+                        <span v-else class="bg-slate-100 text-slate-404 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider font-bold font-sans">EXPIRED</span>
+                      </div>
+
+                      <!-- OTP details -->
+                      <div class="mt-1 min-w-0">
+                        <div class="text-[9px] text-amber-600 font-extrabold italic flex items-center gap-1 font-sans" v-if="alloc.status === 'active'">
+                          <i class="fa-solid fa-spinner animate-spin text-[8px]"></i> Listening live for OTP...
+                        </div>
+                        
+                        <div v-else-if="alloc.status === 'completed'" class="flex flex-col gap-1 min-w-0 pop-in">
+                          <div class="flex flex-wrap gap-1.5">
+                            <div v-for="(singleOtp, otpIdx) in getOtpsList(alloc)" :key="otpIdx" @click.stop="copyToClipboard(singleOtp, 'OTP Code', 'alloc_otp_' + alloc.id + '_' + otpIdx)" class="bg-emerald-100 hover:bg-emerald-200 border border-emerald-400 px-2.5 py-0.5 rounded-lg text-emerald-900 cursor-pointer active:scale-95 transition flex items-center gap-1.5 font-bold text-xs font-mono shadow-xs">
+                              <span>{{ singleOtp }}</span>
+                              <i class="fa-regular" :class="copiedStates['alloc_otp_' + alloc.id + '_' + otpIdx] ? 'fa-circle-check text-emerald-600 scale-125' : 'fa-copy text-emerald-700'"></i>
+                            </div>
+                          </div>
+
+                          <p v-if="alloc.message" 
+                             @click.stop="copyToClipboard(decodeHtml(alloc.message), 'SMS Message', 'sms_msg_' + alloc.id)" 
+                             class="text-[10px] text-slate-700 font-semibold max-w-full truncate font-sans bg-slate-50 hover:bg-slate-100 p-1.5 rounded border border-slate-200 cursor-pointer active:scale-98 transition flex items-center justify-between gap-1 mt-0.5" 
+                             :title="decodeHtml(alloc.message)">
+                            <span class="truncate">{{ decodeHtml(alloc.message) }}</span>
+                            <i class="fa-regular text-[9px] shrink-0" :class="copiedStates['sms_msg_' + alloc.id] ? 'fa-circle-check text-emerald-600 scale-125' : 'fa-copy text-slate-400'"></i>
+                          </p>
+                        </div>
+
+                        <div class="text-[8px] text-rose-500 font-extrabold flex items-center gap-0.5 font-sans" v-else>
+                          <i class="fa-solid fa-circle-exclamation shrink-0 font-bold"></i> Expired. No OTP received.
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- COLUMN 2: COUNTRY & OPERATOR -->
+                    <div class="col-span-7 sm:col-span-4 p-3 flex flex-col justify-center min-w-0">
+                      <span class="text-[8px] text-slate-404 font-extrabold uppercase tracking-wider block sm:hidden font-sans">Country / Operator</span>
+                      <div class="flex items-center gap-1.5 font-sans">
+                        <span class="text-md">{{ getCountryFlag(alloc.number) }}</span>
+                        <span class="font-extrabold text-slate-808 text-[11px] uppercase truncate font-bold">{{ alloc.country }}</span>
+                      </div>
+                      <span class="text-[9px] text-slate-404 font-black uppercase mt-0.5 font-bold font-sans">{{ alloc.operator }}</span>
+                    </div>
+
+                    <!-- COLUMN 3: TIMER & ACTIVITY -->
+                    <div class="col-span-5 sm:col-span-3 p-3 flex flex-col justify-center items-end font-semibold text-slate-707">
+                      <span class="text-[8px] text-slate-404 font-extrabold uppercase tracking-wider block sm:hidden font-sans">Activity</span>
+                      <div class="text-[11px] font-mono font-black text-slate-808 tracking-tight mt-0.5 font-bold flex items-center gap-1">
+                        <i v-if="alloc.status === 'active'" class="fa-regular fa-clock text-amber-500"></i>
+                        {{ alloc.status === 'active' && alloc.timeLeft > 0 ? formatTime(alloc.timeLeft) : 'Completed' }}
+                      </div>
+                      <span class="text-[8px] text-slate-404 font-bold font-sans mt-0.5">{{ formatTimestamp(alloc.createdAt) }}</span>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- User Tab 3: Console -->
+          <div v-if="currentTab === 'console'" class="page-enter-active space-y-6">
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-6 hover-card select-none" v-if="topApps.list && topApps.list.length > 0">
+              <div class="flex items-center gap-2 border-b pb-2">
+                <i class="fa-solid fa-chart-simple text-indigo-600 text-md"></i>
+                <h3 class="font-extrabold text-xs text-slate-404 uppercase tracking-widest font-bold">Top Apps</h3>
+              </div>
+
+              <div class="relative h-56 border border-slate-100 bg-slate-50/30 rounded-2xl flex items-end justify-around pb-4 pt-8 px-6 gap-6">
+                <div class="absolute inset-x-0 top-0 h-full flex flex-col justify-between pointer-events-none select-none opacity-30 p-4">
+                  <div class="border-t border-dashed border-slate-200 w-full h-0"></div>
+                  <div class="border-t border-dashed border-slate-200 w-full h-0"></div>
+                  <div class="border-t border-dashed border-slate-200 w-full h-0"></div>
+                  <div class="border-t border-dashed border-slate-200 w-full h-0"></div>
+                </div>
+
+                <div v-for="(appItem, idx) in topApps.list" :key="appItem.name" class="relative flex flex-col items-center group w-16 z-10 h-full justify-end transition font-sans">
+                  <span class="bg-slate-808 text-white text-[10px] px-2 py-0.5 rounded font-black mb-2 shadow-2xs font-mono">
+                    {{ appItem.count }}
+                  </span>
+                  <div :style="{ height: Math.max(10, appItem.percentage) + '%' }" :class="barColors[idx % 4]" class="w-8 rounded-t-xl transition-all duration-300 shadow-sm relative flex items-end justify-center">
+                  </div>
+                  <span class="text-[10px] font-black text-slate-555 mt-2 truncate max-w-full block uppercase tracking-wider">{{ appItem.name }}</span>
+                </div>
+              </div>
+
+              <div class="space-y-2.5 font-semibold text-slate-707 font-sans">
+                <div v-for="(appItem, idx) in topApps.list" :key="appItem.name" class="flex justify-between items-center text-xs font-semibold font-sans">
+                  <div class="flex items-center gap-2">
+                    <span :class="dotColors[idx % 4]" class="h-3 w-3 rounded-full shrink-0"></span>
+                    <span class="text-slate-808 font-bold">{{ appItem.name }}</span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-slate-808 font-black font-mono font-bold">{{ appItem.count }}</span>
+                    <span class="text-slate-404 font-bold w-10 text-right font-mono font-bold">{{ appItem.percentage }}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs flex justify-between items-center hover-card select-none">
+              <div>
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-satellite-dish text-indigo-600 text-lg animate-pulse"></i>
+                  <h2 class="text-md font-black text-slate-900 font-bold">Console Stream</h2>
+                </div>
+                <p class="text-[10px] text-slate-404 font-medium mt-1">Real-time signal interception from global gateways.</p>
+              </div>
+              <span class="bg-slate-50 text-slate-600 text-[10px] font-bold px-3 py-1.5 rounded-full select-none border font-mono">
+                {{ liveLogs.length }} / 150 Active Logs
+              </span>
+            </div>
+
+            <div class="space-y-3">
+              <div class="p-12 text-slate-404 text-center font-semibold bg-white border rounded-3xl text-xs font-sans" v-if="liveLogs.length === 0">Initializing global signal tracker...</div>
+              
+              <div v-else class="space-y-2.5 select-none">
+                <div v-for="log in liveLogs" :key="log.range + '_' + log.time" @click="copyToClipboard(log.range, log.country + ' Range', 'log_' + log.range + '_' + log.time)" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs cursor-pointer hover:border-indigo-600 hover:bg-slate-50/50 transition active:scale-[0.99] space-y-2">
+                  <div class="flex justify-between items-start border-b border-slate-100 pb-1.5 font-sans">
+                    <div>
+                      <span class="text-xs font-black text-indigo-600 uppercase tracking-wide block flex items-center gap-1.5 select-none font-bold">
+                        <i :class="getServiceIcon(log.service)"></i>
+                        {{ log.service }}
+                        <span v-if="copiedStates['log_' + log.range + '_' + log.time]" class="text-[8px] bg-emerald-100 text-emerald-808 px-1.5 py-0.25 rounded font-black animate-pulse">Copied!</span>
+                      </span>
+                      <span class="text-[10px] font-bold text-slate-555 block mt-0.5 font-mono select-all flex items-center gap-1.5 font-bold">
+                        {{ log.range }}
+                        <i class="fa-regular text-[10px]" :class="copiedStates['log_' + log.range + '_' + log.time] ? 'fa-circle-check text-emerald-505 scale-125' : 'fa-copy text-indigo-505'"></i>
+                      </span>
+                    </div>
+                    <span class="bg-slate-100 text-slate-707 text-[9px] font-bold px-2 py-0.5 rounded uppercase select-none font-sans border font-bold">
+                      {{ log.country }}
+                    </span>
+                  </div>
+                  <div class="space-y-1">
+                    <p class="font-mono font-bold text-slate-808 text-[11px] leading-tight break-words mt-1 font-semibold">
+                      {{ decodeHtml(log.message) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Tab 4: Live Access -->
+          <div v-if="currentTab === 'live-access'" class="page-enter-active space-y-6">
+            
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-4 hover-card text-center select-none font-sans">
+              <h4 class="font-bold text-xs text-slate-404 uppercase tracking-widest flex items-center justify-center gap-2">
+                <i class="fa-solid fa-chart-pie text-indigo-600"></i> Today's Service Demand
+              </h4>
+              <div class="relative h-48 w-48 rounded-full flex items-center justify-center mx-auto transition-all duration-300" :style="serviceDemandChartStyle">
+                <div class="h-36 w-36 bg-[#111625] rounded-full flex flex-col items-center justify-center text-center shadow-xs">
+                  <span class="text-[10px] text-slate-404 font-bold uppercase tracking-widest">Active Ranges</span>
+                  <span class="text-2xl font-black text-white mt-0.5 font-mono">{{ activeRangesCount }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-4 hover-card select-none">
+              <div class="flex items-center justify-between border-b pb-2">
+                <div class="flex items-center gap-2 text-[10px] font-bold text-slate-404 uppercase tracking-widest font-sans">
+                  <i class="fa-solid fa-magnifying-glass text-indigo-600"></i> Find Active Service Ranges
+                </div>
+                <button @click="fetchLiveAccessData" class="text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1">
+                  <i class="fa-solid fa-rotate text-[10px]" :class="liveAccessLoading ? 'animate-spin' : ''"></i> Refresh Ranges
+                </button>
+              </div>
+              <input type="text" v-model="liveAccessSearchQuery" placeholder="Type to search services... (e.g. WhatsApp)" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-md font-bold outline-none text-slate-808 focus:border-indigo-600 transition" />
+            </div>
+
+            <div class="space-y-3">
+              <div class="p-12 text-slate-404 text-center font-semibold bg-white border rounded-3xl text-xs font-bold font-sans" v-if="filteredLiveAccessServices.length === 0">
+                <i class="fa-solid fa-spinner animate-spin text-lg text-indigo-600 block mb-2" v-if="liveAccessLoading"></i>
+                <span>{{ liveAccessLoading ? 'Loading live active ranges...' : 'No active services or ranges found.' }}</span>
+              </div>
+              
+              <div v-else class="space-y-2">
+                <div v-for="service in filteredLiveAccessServices" :key="service.name" class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs hover:shadow-sm hover:border-indigo-200 transition">
+                  <div @click="toggleServiceAccordion(service.name)" class="flex justify-between items-center p-4 bg-slate-50/50 hover:bg-slate-50 cursor-pointer select-none transition">
+                    <div class="flex items-center gap-3">
+                      <div class="h-9 w-9 rounded-full flex items-center justify-center text-white font-black shadow-sm" :class="getServiceIconBg(service.name)">
+                        <i :class="getServiceIcon(service.name)" class="text-base"></i>
+                      </div>
+                      <span class="text-sm font-black text-slate-808 uppercase tracking-wide font-bold">
+                        {{ service.name }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-2 font-sans">
+                      <span class="bg-emerald-50 text-emerald-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-emerald-100 font-mono">
+                        {{ service.ranges.length }} Ranges
+                      </span>
+                      <i class="fa-solid" :class="isAccordionOpen(service.name) ? 'fa-chevron-up text-slate-600' : 'fa-chevron-down text-slate-600'"></i>
+                    </div>
+                  </div>
+
+                  <div class="border-t border-slate-100 p-4 space-y-2.5" v-if="isAccordionOpen(service.name)">
+                    <div v-for="(range, idx) in service.ranges" :key="range.code" class="flex justify-between items-center p-3 bg-slate-50/50 border border-slate-100 rounded-xl hover:border-indigo-600/30 transition">
+                      <div class="flex items-center gap-2.5 min-w-0 font-sans">
+                        <span class="text-xs flex items-center gap-0.5 select-none animate-pulse" v-if="idx === 0">
+                          🔥 🏳️
+                        </span>
+                        <span class="text-[11px] font-black text-slate-404 w-6 font-mono" v-else>
+                          #{{ idx + 1 }}
+                        </span>
+                        <span class="text-lg select-none">
+                          {{ getCountryFlag(range.code) }}
+                        </span>
+                        <span class="text-[11px] sm:text-xs font-bold text-slate-707 flex flex-wrap items-center gap-1.5 min-w-0">
+                          <span class="font-extrabold text-slate-808 font-bold">{{ range.country }}</span> 
+                          <span class="text-slate-300">|</span> 
+                          <span class="font-mono font-black text-slate-900 select-all font-bold">{{ range.code }}</span>
+                        </span>
+                      </div>
+                      
+                      <button @click="copyToClipboard(range.code, range.country + ' Range', 'la_' + range.code)" class="text-indigo-600 hover:text-indigo-808 p-1.5 hover:bg-slate-100 rounded-lg transition flex items-center gap-1.5 shrink-0 font-bold font-sans">
+                        <i class="fa-regular text-[10px]" :class="copiedStates['la_' + range.code] ? 'fa-circle-check text-emerald-505 scale-125' : 'fa-copy'"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Tab 5: Summary -->
+          <div v-if="currentTab === 'summary'" class="page-enter-active space-y-6 select-none font-sans">
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-6 hover-card">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 class="font-extrabold text-md text-slate-908 flex items-center gap-2 font-bold">
+                    <i class="fa-solid fa-chart-line text-indigo-600 font-bold"></i> WORK STATS SUMMARY
+                  </h3>
+                  <p class="text-xs text-slate-404 font-medium">ইউজারের পারফরম্যান্স ও ওটিপি কনভার্সন সামারি রিপোর্ট</p>
+                </div>
+                
+                <div class="flex flex-wrap gap-1.5 bg-slate-100 p-1 rounded-xl">
+                  <button v-for="t in ['today', 'yesterday', '7days', '15days', '30days', 'lifetime']" :key="t" @click="summaryFilter = t" :class="summaryFilter === t ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200'" class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition font-bold">
+                    {{ t === '7days' ? '7 Days' : t === '15days' ? '15 Days' : t === '30days' ? '30 Days' : t }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                  <span class="text-[10px] text-slate-404 font-black uppercase tracking-wider">Total Booking</span>
+                  <h4 class="text-2xl font-black text-slate-900 mt-2 font-mono font-bold">{{ summaryStats.total }}</h4>
+                </div>
+                <div class="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 flex flex-col justify-between">
+                  <span class="text-[10px] text-emerald-600 font-black uppercase tracking-wider">OTP Hits</span>
+                  <h4 class="text-2xl font-black text-emerald-700 mt-2 font-mono font-bold">{{ summaryStats.success }}</h4>
+                </div>
+                <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 flex flex-col justify-between">
+                  <span class="text-[10px] text-indigo-600 font-black uppercase tracking-wider">Success Rate</span>
+                  <h4 class="text-2xl font-black text-indigo-700 mt-2 font-mono font-bold">{{ summaryStats.successRate }}%</h4>
+                </div>
+                <div class="bg-rose-50/50 p-4 rounded-2xl border border-rose-100 flex flex-col justify-between">
+                  <span class="text-[10px] text-rose-600 font-black uppercase tracking-wider">Failed / Expired</span>
+                  <h4 class="text-2xl font-black text-rose-700 mt-2 font-mono font-bold">{{ summaryStats.failed }}</h4>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                  <span class="text-[10px] text-slate-555 font-black uppercase tracking-wider">Fail Rate</span>
+                  <h4 class="text-2xl font-black text-slate-600 mt-2 font-mono font-bold">{{ summaryStats.failRate }}%</h4>
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <div class="flex justify-between text-xs font-bold text-slate-555 font-sans">
+                  <span>Succeed vs Failed Numbers Ratio</span>
+                  <span>{{ summaryStats.successRate }}% Success</span>
+                </div>
+                <div class="w-full h-3 bg-rose-200 rounded-full overflow-hidden flex shadow-inner">
+                  <div :style="{ width: summaryStats.successRate + '%' }" class="h-full bg-emerald-500 transition-all duration-300"></div>
+                  <div :style="{ width: summaryStats.failRate + '%' }" class="h-full bg-rose-500 transition-all duration-300"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Tab 6: Leaderboard -->
+          <div v-if="currentTab === 'leaderboard'" class="page-enter-active space-y-6 select-none font-semibold text-slate-707 font-sans font-bold">
+            
+            <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 text-white p-5 rounded-3xl shadow-md flex items-center justify-between hover-card font-sans">
+              <div class="space-y-1">
+                <span class="text-[9px] font-black bg-white/20 px-2.5 py-1 rounded-full uppercase tracking-wider font-sans">My Ranking Status</span>
+                <h3 class="text-base font-black font-bold font-sans">Your current network position is #{{ personalRank }}</h3>
+                <p class="text-[11px] text-white/80 font-sans">You have completed a total of <strong class="text-white font-bold font-mono">{{ personalOtpCount }}</strong> successful OTP checks!</p>
+              </div>
+              <div class="text-3xl font-black opacity-40 select-none font-mono">#{{ personalRank }}</div>
+            </div>
+
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs font-sans">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-amber-500 text-lg"></i>
+                    <h2 class="text-md font-black text-slate-900 font-bold">TOP WORKERS LEADERBOARD</h2>
+                  </div>
+                  <p class="text-[10px] text-slate-404 font-medium mt-1 font-sans">Real-time work ranks based on completed OTP codes verified securely.</p>
+                </div>
+                <span class="text-[10px] text-slate-555 font-bold uppercase tracking-tight italic bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full shrink-0 flex items-center gap-1.5 font-mono">
+                  <i class="fa-regular fa-clock"></i> Restarts every 25 Hours
+                </span>
+              </div>
+
+              <div class="flex gap-2 text-xs font-black mt-5">
+                <button @click="leaderboardTab = 'today'" :class="leaderboardTab === 'today' ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-slate-50 text-slate-505 hover:bg-slate-100'" class="px-4 py-2 rounded-xl transition">Today (25H)</button>
+                <button @click="leaderboardTab = 'weekly'" :class="leaderboardTab === 'weekly' ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-slate-50 text-slate-505 hover:bg-slate-100'" class="px-4 py-2 rounded-xl transition">Weekly</button>
+                <button @click="leaderboardTab = 'lifetime'" :class="leaderboardTab === 'lifetime' ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-slate-50 text-slate-505 hover:bg-slate-100'" class="px-4 py-2 rounded-xl transition">Lifetime</button>
+              </div>
+
+              <div class="space-y-3 mt-4 max-h-[500px] overflow-y-auto pr-1">
+                <div v-for="(worker, idx) in leaderboardData[leaderboardTab]" :key="idx" class="flex justify-between items-center bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 text-xs hover:border-indigo-600/30 transition">
+                  <div class="flex items-center gap-3">
+                    <span class="font-black text-xs h-7 w-7 rounded-full flex items-center justify-center shrink-0 border shadow-2xs font-mono font-bold" :class="idx === 0 ? 'bg-amber-100 text-amber-707 border-amber-200' : idx === 1 ? 'bg-slate-200 text-slate-707 border-slate-300' : 'bg-orange-100 text-orange-707 border-orange-200'">
+                      #{{ idx + 1 }}
+                    </span>
+                    <div>
+                      <span class="font-extrabold text-slate-808 text-sm block font-bold">{{ worker.name }}</span>
+                      <span class="text-[10px] text-slate-404 block font-semibold font-mono font-bold">{{ worker.id_code }}</span>
+                    </div>
+                  </div>
+                  <span class="font-black text-indigo-600 text-sm bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-2xs font-mono font-bold">
+                    {{ worker.count }} Successful OTPs
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Tab 7: API Docs & Playground -->
+          <div v-if="currentTab === 'api-docs'" class="page-enter-active space-y-6 select-none font-sans font-bold">
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+              <h3 class="text-md font-black text-slate-900 flex items-center gap-2 font-bold">
+                <i class="fa-solid fa-laptop-code text-indigo-600"></i> Developer API Docs
+              </h3>
+              <p class="text-xs text-slate-505 font-medium leading-relaxed font-semibold">
+                Integrate MINO SMS services directly into your custom Telegram bots or backend applications.
+              </p>
+            </div>
+
+            <!-- API Base Endpoint Showcase Card -->
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-2 select-none">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <i class="fa-solid fa-server text-indigo-600"></i> API Base Endpoint URL
+                </span>
+                <span class="bg-emerald-100 text-emerald-808 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase">Active</span>
+              </div>
+              <div class="flex items-center justify-between bg-slate-900 text-emerald-400 p-3.5 rounded-2xl font-mono text-xs sm:text-sm border border-slate-800">
+                <span class="truncate font-black select-all">https://mino-sms-panel.xyz</span>
+                <button @click="copyToClipboard('https://mino-sms-panel.xyz', 'API Base URL', 'api_base_copy')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-xs font-sans font-bold flex items-center gap-1 shrink-0 ml-2 transition">
+                  <i class="fa-regular" :class="copiedStates['api_base_copy'] ? 'fa-circle-check' : 'fa-copy'"></i>
+                  <span>{{ copiedStates['api_base_copy'] ? 'Copied' : 'Copy' }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="space-y-4 select-none">
+                <h4 class="text-sm font-black text-slate-808 px-1 font-bold border-b pb-2">API Documentation</h4>
+                
+                <div class="space-y-4 text-xs font-semibold">
+                  <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                      <span class="bg-indigo-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase font-bold">POST / GET</span>
+                      <span class="text-[10px] text-slate-404 font-mono">getnumber</span>
+                    </div>
+                    <p class="font-mono font-black text-indigo-705 mt-1 font-bold">/getnumber</p>
+                    <p class="text-[11px] text-slate-505 font-medium font-semibold">Allocate a temporary virtual number instantly using target range.</p>
+                    <div class="text-[10px] bg-slate-900 text-emerald-400 p-3 rounded-xl font-mono select-all border border-slate-880 leading-relaxed">
+                      Header: { "mauthapi": "YOUR_API_KEY" }<br>
+                      Payload: { "rid": "2250789XXX" }
+                    </div>
+                  </div>
+
+                  <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                      <span class="bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase font-bold">GET</span>
+                      <span class="text-[10px] text-slate-404 font-mono">check</span>
+                    </div>
+                    <p class="font-mono font-black text-emerald-705 mt-1 font-bold">/check</p>
+                    <p class="text-[11px] text-slate-505 font-medium font-semibold">Check active booking status and intercept incoming OTP SMS.</p>
+                    <div class="text-[10px] bg-slate-900 text-emerald-400 p-3 rounded-xl font-mono select-all border border-slate-880 leading-relaxed">
+                      Query: ?api_key=YOUR_KEY&number=NUMBER
+                    </div>
+                  </div>
+
+                  <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                      <span class="bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase font-bold">GET</span>
+                      <span class="text-[10px] text-slate-404 font-mono">liveaccess</span>
+                    </div>
+                    <p class="font-mono font-black text-blue-705 mt-1 font-bold">/liveaccess</p>
+                    <p class="text-[11px] text-slate-505 font-medium font-semibold">Get a list of currently active services and active ranges.</p>
+                    <div class="text-[10px] bg-slate-900 text-emerald-400 p-3 rounded-xl font-mono select-all border border-slate-880 leading-relaxed">
+                      Query: ?api_key=YOUR_KEY
+                    </div>
+                  </div>
+
+                  <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                      <span class="bg-purple-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase font-bold">GET</span>
+                      <span class="text-[10px] text-slate-404 font-mono">console</span>
+                    </div>
+                    <p class="font-mono font-black text-purple-705 mt-1 font-bold">/console</p>
+                    <p class="text-[11px] text-slate-505 font-medium font-semibold">Fetch the latest 150 live OTP messages flowing through the master console.</p>
+                    <div class="text-[10px] bg-slate-900 text-emerald-400 p-3 rounded-xl font-mono select-all border border-slate-880 leading-relaxed">
+                      Query: ?api_key=YOUR_KEY
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 select-none h-max">
+                <h4 class="text-sm font-black text-slate-808 border-b pb-2 font-bold">API Playground / Tester</h4>
+                
+                <div class="space-y-4 text-xs font-bold text-slate-600 font-sans">
+                  <div>
+                    <label class="text-slate-404">Select Endpoint</label>
+                    <select v-model="selectedTestApi" class="w-full mt-1.5 p-3.5 bg-slate-50 border rounded-xl outline-none focus:border-indigo-600 transition font-bold">
+                      <option value="getnum">POST /getnumber</option>
+                      <option value="check">GET /check</option>
+                      <option value="liveaccess">GET /liveaccess</option>
+                      <option value="success-otp">GET /success_otp</option>
+                      <option value="console">GET /console</option>
+                    </select>
+                  </div>
+
+                  <div v-if="selectedTestApi === 'getnum' || selectedTestApi === 'check'">
+                    <label class="text-slate-404">{{ selectedTestApi === 'getnum' ? 'Range ID (rid)' : 'Phone Number (number)' }}</label>
+                    <input type="text" v-model="testRange" class="w-full mt-1.5 p-3.5 bg-slate-50 border rounded-xl font-mono focus:border-indigo-600 transition font-semibold" />
+                  </div>
+
+                  <button @click="runLiveApiTest" :disabled="testApiLoading" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl transition shadow-xs flex items-center justify-center gap-2 active:scale-95 disabled:bg-slate-300">
+                    <i v-if="testApiLoading" class="fa-solid fa-spinner animate-spin"></i>
+                    <i v-else class="fa-solid fa-paper-plane"></i>
+                    Send Request
+                  </button>
+
+                  <div v-if="testApiResponse" class="space-y-2 pt-2">
+                    <span class="text-[10px] uppercase font-black text-slate-404 block">Live Response:</span>
+                    <pre class="bg-slate-900 text-emerald-400 p-4 rounded-2xl font-mono text-[11px] select-all max-h-60 overflow-y-auto leading-relaxed border border-slate-880 font-semibold font-sans">{{ testApiResponse }}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Shared Tab: Payment/Withdraw -->
+          <div v-if="currentTab === 'payment'" class="page-enter-active space-y-6 select-none font-semibold text-slate-707 font-bold">
+            
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-4 hover-card select-none">
+              <h3 class="font-black text-xs text-slate-808 flex items-center gap-2"><i class="fa-solid fa-wallet text-indigo-600 font-bold"></i> Configure Wallet Address / Receiver ID</h3>
+              
+              <div class="bg-indigo-50/50 border border-indigo-100 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <p class="text-[10px] text-slate-404 font-bold uppercase">Withdraw Address Destination</p>
+                  <p class="font-mono font-black text-indigo-705 mt-1 select-all break-all flex items-center gap-1.5">
+                    {{ user?.wallet_address || 'No destination address configured' }}
+                    <i class="fa-regular text-[10px] cursor-pointer" v-if="user?.wallet_address" @click="copyToClipboard(user?.wallet_address, 'Wallet Address', 'wallet_addr')" :class="copiedStates['wallet_addr'] ? 'fa-circle-check text-emerald-505 scale-125' : 'fa-copy text-indigo-500'"></i>
+                  </p>
+                </div>
+                <span class="bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm"><i class="fa-solid fa-money-bill-transfer font-bold"></i> Payout</span>
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-2 pt-2 select-none">
+                <input type="text" v-model="walletAddressInput" placeholder="Enter Binance Pay ID, Bkash No, or TRC20 address" class="flex-1 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold outline-none focus:border-indigo-600 transition" />
+                <button @click="handleUpdateWallet" :disabled="walletLoading" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-5 py-3.5 rounded-2xl text-xs tracking-wider transition active:scale-95 disabled:bg-slate-300 shrink-0">
+                  {{ walletLoading ? 'Saving...' : 'Save Payout Details' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Submit Withdraw Form -->
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-4 hover-card select-none">
+              <h3 class="font-black text-xs text-slate-808 flex items-center gap-2">
+                <i class="fa-solid fa-hand-holding-dollar text-emerald-600"></i> Withdraw Request (মিনিমাম ৫০ টাকা)
+              </h3>
+              <p class="text-[11px] text-slate-404 leading-relaxed font-semibold">Request a withdrawal of your earnings to your saved wallet address.</p>
+              
+              <div class="grid sm:grid-cols-2 gap-3 text-xs font-bold font-sans">
+                <div>
+                  <label class="text-slate-404 font-bold">Withdraw Amount (৳)</label>
+                  <input type="number" step="1" v-model="withdrawAmount" placeholder="e.g., 50" class="w-full mt-1.5 p-3 bg-slate-50 border rounded-xl font-mono focus:border-indigo-600 transition font-bold" />
+                </div>
+                <div>
+                  <label class="text-slate-404 font-bold">Payment Method</label>
+                  <select v-model="withdrawMethod" class="w-full mt-1.5 p-3 bg-slate-50 border rounded-xl focus:border-indigo-600 transition font-bold">
+                    <option value="">Select Allowed Method</option>
+                    <option v-for="m in withdrawalMethods" :key="m.id" :value="m.method_name">{{ m.method_name }}</option>
+                  </select>
+                </div>
+                <div v-if="profile?.withdraw_pin">
+                  <label class="text-slate-404 font-bold">Secure Withdraw PIN (4 Digits)</label>
+                  <input type="password" maxlength="4" v-model="withdrawPinInput" placeholder="e.g. 1234" class="w-full mt-1.5 p-3 bg-slate-50 border rounded-xl font-mono focus:border-indigo-600 transition font-bold" />
+                </div>
+              </div>
+
+              <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 border-t pt-3 select-none">
+                <div class="text-[11px] font-bold text-slate-555 flex items-center gap-1">
+                  Destination Address: 
+                  <span class="text-indigo-600 font-mono select-all font-bold font-mono">{{ user?.wallet_address || 'Please set a wallet address first.' }}</span>
+                </div>
+                <button @click="submitWithdrawal" :disabled="!user?.wallet_address || withdrawAmount < 50 || !withdrawMethod" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-6 py-3 rounded-xl text-xs transition flex items-center gap-1.5 disabled:bg-slate-200 shadow-sm active:scale-95 font-bold">
+                  <i class="fa-solid fa-paper-plane"></i> Submit Request
+                </button>
+              </div>
+            </div>
+
+            <!-- Withdraw History -->
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-4 select-none">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3 font-sans">
+                <h3 class="font-black text-xs text-slate-808 flex items-center gap-2">
+                  <i class="fa-solid fa-history text-indigo-600"></i> Withdrawal History
+                </h3>
+                
+                <div class="flex gap-1 bg-slate-100 p-1 rounded-xl text-[9px] font-bold select-none">
+                  <button v-for="mode in ['today', 'yesterday', '7days', 'lifetime']" :key="mode" @click="withdrawHistoryFilter = mode" :class="withdrawHistoryFilter === mode ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-505 hover:bg-slate-200'" class="px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition">
+                    {{ mode === '7days' ? '7 Days' : mode }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-semibold">
+                  <thead>
+                    <tr class="text-slate-404 font-bold uppercase tracking-wider border-b">
+                      <th class="py-2.5 font-bold">Date</th>
+                      <th class="py-2.5 font-bold">Amount</th>
+                      <th class="py-2.5 font-bold">Method</th>
+                      <th class="py-2.5 font-bold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="filteredWithdrawals.length === 0">
+                      <td colspan="4" class="py-8 text-center text-slate-404 font-bold">No matching withdrawals found.</td>
+                    </tr>
+                    <tr v-else v-for="wd in filteredWithdrawals" :key="wd.id" class="border-b border-slate-100 hover:bg-slate-50/50 transition">
+                      <td class="py-3 font-mono text-slate-555 text-[10px]">{{ formatTimestamp(wd.createdAt) }}</td>
+                      <td class="py-3 font-black text-slate-808 font-bold font-mono">৳ {{ parseFloat(wd.amount || 0).toFixed(2) }}</td>
+                      <td class="py-3 uppercase text-indigo-600 font-bold">{{ wd.method }}</td>
+                      <td class="py-3">
+                        <span v-if="wd.status === 'approved'" class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Approved</span>
+                        <span v-else-if="wd.status === 'pending'" class="bg-amber-100 text-amber-808 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Pending</span>
+                        <span v-else class="bg-rose-100 text-rose-808 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">Rejected</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+          </div>
+
+          <!-- Shared Tab: Profile details -->
+          <div v-if="currentTab === 'profile'" class="page-enter-active space-y-6 select-none font-semibold text-slate-707 font-sans">
+            
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs flex items-center gap-4 hover-card select-none">
+              <div class="h-14 w-14 bg-indigo-600 text-white font-black text-sm rounded-full flex items-center justify-center font-bold">
+                {{ user?.name ? user.name.slice(0, 2).toUpperCase() : 'US' }}
+              </div>
+              <div class="flex-1 overflow-hidden select-none font-bold">
+                <p class="text-sm font-black text-slate-808 font-bold">{{ user?.name || 'User' }}</p>
+                <p class="text-[10px] text-slate-404 truncate">{{ user?.email }}</p>
+              </div>
+              <span class="bg-indigo-50 text-indigo-600 border border-indigo-100 text-[10px] font-bold px-3 py-1 rounded-full uppercase select-none">
+                MEMBER PORTAL
+              </span>
+            </div>
+
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-3 text-xs hover-card select-none">
+              <h3 class="font-bold text-slate-808 border-b border-slate-100 pb-2 font-sans">My Profile</h3>
+              
+              <div class="space-y-4 font-sans text-xs">
+                <div>
+                  <label class="text-slate-404 uppercase text-[10px] tracking-wider font-bold">User UID (Read-Only)</label>
+                  <input type="text" readonly :value="profile?.uid" class="w-full mt-1.5 p-3.5 bg-slate-50 border rounded-xl text-slate-404 font-mono" />
+                </div>
+                <div>
+                  <label class="text-slate-404 uppercase text-[10px] tracking-wider font-bold">Email Address (Read-Only)</label>
+                  <input type="text" readonly :value="profile?.email" class="w-full mt-1.5 p-3.5 bg-slate-50 border rounded-xl text-slate-404 font-mono" />
+                </div>
+                <div>
+                  <label class="text-slate-404 uppercase text-[10px] tracking-wider font-bold">Display Name (Read-Only)</label>
+                  <input type="text" readonly :value="profile?.name" class="w-full mt-1.5 p-3.5 bg-slate-50 border rounded-xl text-slate-404" />
+                </div>
+                <div>
+                  <label class="text-slate-404 uppercase text-[10px] tracking-wider font-bold">Telegram Username</label>
+                  <input type="text" v-model="profileTelegramUsername" placeholder="e.g. @MinoXSupport0" class="w-full mt-1.5 p-3.5 bg-white border rounded-xl text-slate-808 font-bold focus:border-indigo-600 transition outline-none" />
+                </div>
+
+                <button @click="saveProfileChanges" :disabled="profileTelegramLoading" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 py-3 rounded-2xl text-xs tracking-wider transition active:scale-95 disabled:bg-slate-300 font-bold">
+                  {{ profileTelegramLoading ? 'Saving...' : 'Save Profile Changes' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- API Access Key Card -->
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-3 text-xs hover-card select-none">
+              <h3 class="font-bold text-slate-808 border-b border-slate-100 pb-2 font-sans">API Key Details</h3>
+              <div class="space-y-4 font-semibold text-slate-707">
+                <p class="text-slate-555">ID Code / Unique Identifier: <span class="text-slate-800 font-bold ml-1 font-mono select-all font-mono">{{ profile ? profile.id_code : 'N/A' }}</span></p>
+                
+                <div class="space-y-2">
+                  <div class="space-y-2" v-if="profile && profile.api_key">
+                    <p class="text-slate-505 font-sans">Your API Authentication Key:</p>
+                    
+                    <div class="flex flex-col gap-2 font-sans" v-if="profile.api_key_approved">
+                      <span class="text-slate-808 font-mono text-[10px] bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-200 break-all select-all font-semibold flex items-center justify-between gap-1.5 font-mono">
+                        <span>{{ profile.api_key }}</span>
+                        <button @click="copyToClipboard(profile.api_key, 'API Key', 'profile_key')" class="text-indigo-600 hover:text-indigo-808 text-xs flex items-center gap-1 font-bold shrink-0">
+                          <i class="fa-regular" :class="copiedStates['profile_key'] ? 'fa-circle-check text-emerald-505 scale-125' : 'fa-copy'"></i>
+                        </button>
+                      </span>
+                      <span class="text-emerald-600 text-[10px] font-sans">
+                        <i class="fa-solid fa-circle-check"></i> API Key Approved (Unlimited access active)
+                      </span>
+                    </div>
+                    
+                    <div class="flex flex-col gap-2 font-sans" v-else>
+                      <span class="text-rose-600 font-mono text-[11px] bg-rose-50 px-3 py-2 rounded border border-rose-200 font-black">
+                        API Key is disabled (Pending Admin Approval)
+                      </span>
+                      <span class="text-amber-600 text-[10px] font-bold">
+                        <i class="fa-solid fa-clock"></i> API Key Pending Admin Approval
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div class="space-y-2 select-none font-sans" v-if="!profile?.api_key">
+                    <p class="text-amber-600 text-[10px] font-bold"><i class="fa-solid fa-triangle-exclamation"></i> No active API key found. Generate your API key below.</p>
+                    <button @click="handleGenerateApiKey" :disabled="apiGenLoading" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2.5 rounded-2xl text-[11px] tracking-wider transition active:scale-95 disabled:bg-slate-300">
+                      {{ apiGenLoading ? 'Generating...' : 'GENERATE API KEY' }}
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Assigned Agent Info Card -->
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-4 hover-card select-none font-sans">
+              <h3 class="font-bold text-slate-808 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <i class="fa-solid fa-user-tie text-indigo-600"></i> Your Assigned Agent
+              </h3>
+              <div class="space-y-3 font-semibold text-slate-707">
+                <div class="flex justify-between items-center text-xs">
+                  <span class="text-slate-404">Agent Name</span>
+                  <span class="text-slate-808 font-bold font-sans">Official Agent</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                  <span class="text-slate-404">Agent Email</span>
+                  <span class="text-indigo-600 font-mono select-all font-bold">official@minosms.xyz</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                  <span class="text-slate-404">Agent Telegram</span>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-slate-808 font-bold font-mono">@MinoXSupport0</span>
+                    <button @click="copyToClipboard('@MinoXSupport0', 'Telegram Username', 'agent_tele')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black px-2.5 py-1 rounded-lg text-[9px] uppercase tracking-wide flex items-center gap-1">
+                      <i class="fa-regular fa-copy"></i> Copy
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </main>
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted, computed, watch } = Vue;
+
+    try {
+      createApp({
+        setup() {
+          const userLoaded = ref(true); 
+          const user = ref(null);
+          const profile = ref(null);
+          const authName = ref('');
+          const authEmail = ref('');
+          const authPassword = ref('');
+          const authAgentEmail = ref(''); 
+          const isRegistering = ref(false);
+          const authLoading = ref(false);
+
+          const currentTab = ref('dashboard');
+          const announcement = ref('');
+          const mobileMenuOpen = ref(false);
+
+          // ⚡ SAVE & PERSIST LAST USED RANGE IN LOCALSTORAGE & URL PARAMS
+          const urlParams = new URLSearchParams(window.location.search);
+          const urlRid = urlParams.get('rid');
+          const savedRid = localStorage.getItem('mino_last_rid');
+          const rid = ref(urlRid || savedRid || '880X01');
+
+          watch(rid, (newVal) => {
+            if (newVal) {
+              localStorage.setItem('mino_last_rid', newVal.trim());
+            }
+          });
+
+          const nationalFormat = ref(true); 
+          const removePlus = ref(true);     
+          
+          const activeNumber = ref(null);
+          const activeCountry = ref('');
+          const activeOperator = ref('');
+          const otpResult = ref(null);
+          const loadingNumber = ref(false);
+          const isRefreshingAllocations = ref(false);
+          const liveLogs = ref([]);
+          const successOtps = ref([]);
+          
+          const walletAddressInput = ref('');
+          const walletLoading = ref(false);
+          const apiGenLoading = ref(false);
+
+          const searchQuery = ref('');
+
+          // ⚡ INSTANT 0ms RENDER FROM LOCALSTORAGE CACHE
+          const getInitialAllocations = () => {
+            try {
+              const cached = localStorage.getItem('mino_cached_allocations');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed)) return parsed;
+              }
+            } catch (e) {}
+            return [];
+          };
+
+          const allocations = ref(getInitialAllocations());
+          const currentPage = ref(1);
+          const itemsPerPage = 200;
+
+          const showToast = ref(false);
+          const toastTitle = ref('Number copied');
+          const toastMessage = ref('');
+          
+          let generalTimer = null;
+          let consoleTimer = null;
+          let liveAccessTimer = null;
+          let pollingActive = true;
+
+          const knownCompletedIds = new Set();
+          let isInitialCompletedLoad = true;
+
+          const apiBaseUrl = ref(window.location.origin);
+          const selectedTestApi = ref('getnum');
+          const testRange = ref('880X01');
+          const testApiLoading = ref(false);
+          const testApiResponse = ref(null);
+
+          const barColors = ['bg-indigo-600', 'bg-[#1877F2]', 'bg-[#25D366]', 'bg-[#24A1DE]'];
+          const dotColors = ['bg-indigo-600', 'bg-[#1877F2]', 'bg-[#25D366]', 'bg-[#24A1DE]'];
+
+          const leaderboardTab = ref('today');
+          const leaderboardData = ref({ today: [], weekly: [], lifetime: [] });
+          const personalRank = ref(0);
+          const personalOtpCount = ref(0);
+
+          const withdrawAmount = ref('');
+          const withdrawMethod = ref('');
+          const withdrawPinInput = ref('');
+          const withdrawalsHistory = ref([]);
+          const withdrawHistoryFilter = ref('lifetime');
+          const withdrawalMethods = ref([]);
+
+          const summaryFilter = ref('lifetime');
+
+          const serviceRates = ref({
+            facebook: { rate: 0.40, status: 'ON' },
+            instagram: { rate: 0.40, status: 'ON' },
+            whatsapp: { rate: 0.00, status: 'OFF' },
+            telegram: { rate: 0.00, status: 'OFF' },
+            google: { rate: 0.40, status: 'ON' },
+            generic: { rate: 0.40, status: 'ON' }
+          });
+
+          const liveAccessSearchQuery = ref('');
+          const openAccordions = ref({});
+          const serverLiveAccessServices = ref([]);
+          const liveAccessLoading = ref(false);
+
+          const profileTelegramUsername = ref('');
+          const profileTelegramLoading = ref(false);
+
+          const copiedStates = ref({});
+
+          const countryPrefixes = {
+            "1": { name: "USA/Canada", flag: "🇺🇸" },
+            "7": { name: "Russia/Kazakhstan", flag: "🇷🇺" },
+            "20": { name: "Egypt", flag: "🇪🇬" },
+            "212": { name: "Morocco", flag: "🇲🇦" },
+            "213": { name: "Algeria", flag: "🇩🇿" },
+            "216": { name: "Tunisia", flag: "🇹🇳" },
+            "218": { name: "Libya", flag: "🇱🇾" },
+            "220": { name: "Gambia", flag: "🇬🇲" },
+            "221": { name: "Senegal", flag: "🇸🇳" },
+            "222": { name: "Mauritania", flag: "🇲🇷" },
+            "223": { name: "Mali", flag: "🇲🇱" },
+            "224": { name: "Guinea", flag: "🇬🇳" },
+            "225": { name: "Ivory Coast", flag: "🇨🇮" },
+            "226": { name: "Burkina Faso", flag: "🇧🇫" },
+            "227": { name: "Niger", flag: "🇳🇪" },
+            "228": { name: "Togo", flag: "🇹🇬" },
+            "229": { name: "Benin", flag: "🇧🇯" },
+            "230": { name: "Mauritius", flag: "🇲🇺" },
+            "231": { name: "Liberia", flag: "🇱🇷" },
+            "232": { name: "Sierra Leone", flag: "🇸🇱" },
+            "233": { name: "Ghana", flag: "🇬🇭" },
+            "234": { name: "Nigeria", flag: "🇳🇬" },
+            "235": { name: "Chad", flag: "🇹🇩" },
+            "236": { name: "Central African Rep", flag: "🇨🇫" },
+            "237": { name: "Cameroon", flag: "🇨🇲" },
+            "241": { name: "Gabon", flag: "🇬🇦" },
+            "242": { name: "Congo", flag: "🇨🇬" },
+            "243": { name: "DR Congo", flag: "🇨🇩" },
+            "244": { name: "Angola", flag: "🇦🇴" },
+            "245": { name: "Guinea-Bissau", flag: "🇬🇼" },
+            "248": { name: "Seychelles", flag: "🇸🇨" },
+            "249": { name: "Sudan", flag: "🇸🇩" },
+            "250": { name: "Rwanda", flag: "🇷🇼" },
+            "251": { name: "Ethiopia", flag: "🇪🇹" },
+            "252": { name: "Somalia", flag: "🇸🇴" },
+            "254": { name: "Kenya", flag: "🇰🇪" },
+            "255": { name: "Tanzania", flag: "🇹🇿" },
+            "256": { name: "Uganda", flag: "🇺🇬" },
+            "257": { name: "Burundi", flag: "🇧🇮" },
+            "258": { name: "Mozambique", flag: "🇲🇿" },
+            "260": { name: "Zambia", flag: "🇿🇲" },
+            "261": { name: "Madagascar", flag: "🇲🇬" },
+            "263": { name: "Zimbabwe", flag: "🇿🇼" },
+            "264": { name: "Namibia", flag: "🇳🇦" },
+            "265": { name: "Malawi", flag: "🇲🇼" },
+            "30": { name: "Greece", flag: "🇬🇷" },
+            "31": { name: "Netherlands", flag: "🇳🇱" },
+            "32": { name: "Belgium", flag: "🇧🇪" },
+            "33": { name: "France", flag: "🇫🇷" },
+            "34": { name: "Spain", flag: "🇪🇸" },
+            "351": { name: "Portugal", flag: "🇵🇹" },
+            "352": { name: "Luxembourg", flag: "🇱🇺" },
+            "353": { name: "Ireland", flag: "🇮🇪" },
+            "354": { name: "Iceland", flag: "🇮🇸" },
+            "355": { name: "Albania", flag: "🇦🇱" },
+            "358": { name: "Finland", flag: "🇫🇮" },
+            "359": { name: "Bulgaria", flag: "🇧🇬" },
+            "36": { name: "Hungary", flag: "🇭🇺" },
+            "370": { name: "Lithuania", flag: "🇱🇹" },
+            "371": { name: "Latvia", flag: "🇱🇻" },
+            "372": { name: "Estonia", flag: "🇪🇪" },
+            "374": { name: "Armenia", flag: "🇦🇲" },
+            "375": { name: "Belarus", flag: "🇧🇾" },
+            "380": { name: "Ukraine", flag: "🇺🇦" },
+            "381": { name: "Serbia", flag: "🇷🇸" },
+            "382": { name: "Montenegro", flag: "🇲🇪" },
+            "385": { name: "Croatia", flag: "🇭🇷" },
+            "386": { name: "Slovenia", flag: "🇸🇮" },
+            "387": { name: "Bosnia and Herzegovina", flag: "🇧🇦" },
+            "389": { name: "North Macedonia", flag: "🇲🇰" },
+            "40": { name: "Romania", flag: "🇷🇴" },
+            "41": { name: "Switzerland", flag: "🇨🇭" },
+            "420": { name: "Czech Republic", flag: "🇨🇿" },
+            "421": { name: "Slovakia", flag: "🇸🇰" },
+            "43": { name: "Austria", flag: "🇦🇹" },
+            "44": { name: "United Kingdom", flag: "🇬🇧" },
+            "45": { name: "Denmark", flag: "🇩🇰" },
+            "46": { name: "Sweden", flag: "🇸🇪" },
+            "47": { name: "Norway", flag: "🇳🇴" },
+            "48": { name: "Poland", flag: "🇵🇱" },
+            "49": { name: "Germany", flag: "🇩🇪" },
+            "51": { name: "Peru", flag: "🇵🇪" },
+            "52": { name: "Mexico", flag: "🇲🇽" },
+            "53": { name: "Cuba", flag: "🇨🇺" },
+            "54": { name: "Argentina", flag: "🇦🇷" },
+            "55": { name: "Brazil", flag: "🇧🇷" },
+            "56": { name: "Chile", flag: "🇨🇱" },
+            "57": { name: "Colombia", flag: "🇨🇴" },
+            "58": { name: "Venezuela", flag: "🇻🇪" },
+            "60": { name: "Malaysia", flag: "🇲🇾" },
+            "61": { name: "Australia", flag: "🇦🇺" },
+            "62": { name: "Indonesia", flag: "🇮🇩" },
+            "63": { name: "Philippines", flag: "🇵🇭" },
+            "64": { name: "New Zealand", flag: "🇳🇿" },
+            "65": { name: "Singapore", flag: "🇸🇬" },
+            "66": { name: "Thailand", flag: "🇹🇭" },
+            "81": { name: "Japan", flag: "🇯🇵" },
+            "82": { name: "South Korea", flag: "🇰🇷" },
+            "84": { name: "Vietnam", flag: "🇻🇳" },
+            "880": { name: "Bangladesh", flag: "🇧🇩" },
+            "90": { name: "Turkey", flag: "🇹🇷" },
+            "91": { name: "India", flag: "🇮🇳" },
+            "92": { name: "Pakistan", flag: "🇵🇰" },
+            "93": { name: "Afghanistan", flag: "🇦🇫" },
+            "94": { name: "Sri Lanka", flag: "🇱🇰" },
+            "95": { name: "Myanmar", flag: "🇲🇲" },
+            "961": { name: "Lebanon", flag: "🇱🇧" },
+            "962": { name: "Jordan", flag: "🇯🇴" },
+            "963": { name: "Syria", flag: "🇸🇾" },
+            "964": { name: "Iraq", flag: "🇮🇶" },
+            "965": { name: "Kuwait", flag: "🇰🇼" },
+            "966": { name: "Saudi Arabia", flag: "🇸🇦" },
+            "967": { name: "Yemen", flag: "🇾🇪" },
+            "968": { name: "Oman", flag: "🇴🇲" },
+            "971": { name: "UAE", flag: "🇦🇪" },
+            "972": { name: "Israel", flag: "🇮🇱" },
+            "973": { name: "Bahrain", flag: "🇧🇭" },
+            "974": { name: "Qatar", flag: "🇶🇦" },
+            "977": { name: "Nepal", flag: "🇳🇵" },
+            "992": { name: "Tajikistan", flag: "🇹🇯" },
+            "993": { name: "Turkmenistan", flag: "🇹🇲" },
+            "994": { name: "Azerbaijan", flag: "🇦🇿" },
+            "995": { name: "Georgia", flag: "🇬🇪" },
+            "996": { name: "Kyrgyzstan", flag: "🇰🇬" },
+            "998": { name: "Uzbekistan", flag: "🇺🇿" }
+          };
+
+          const decodeHtml = (html) => {
+            if (!html) return '';
+            const txt = document.createElement("textarea");
+            txt.innerHTML = html;
+            return txt.value;
+          };
+
+          let audioCtx = null;
+          const playBeep = () => {
+            try {
+              if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+              }
+              if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+              }
+              const osc = audioCtx.createOscillator();
+              const gain = audioCtx.createGain();
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              osc.type = "sine";
+              osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
+              gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+              osc.start();
+              osc.stop(audioCtx.currentTime + 0.18); 
+            } catch (e) {}
+          };
+
+          const toggleServiceAccordion = (svcName) => {
+            openAccordions.value[svcName] = !openAccordions.value[svcName];
+          };
+
+          const isAccordionOpen = (svcName) => {
+            return !!openAccordions.value[svcName];
+          };
+
+          const getServiceIcon = (name) => {
+            if (!name) return 'fa-solid fa-comment-sms';
+            const n = String(name).toLowerCase();
+            if (n.includes('facebook') || n.includes('fb')) return 'fa-brands fa-facebook-f';
+            if (n.includes('instagram') || n.includes('ig')) return 'fa-brands fa-instagram';
+            if (n.includes('whatsapp') || n.includes('wa')) return 'fa-brands fa-whatsapp';
+            if (n.includes('telegram') || n.includes('tg')) return 'fa-brands fa-telegram';
+            if (n.includes('google') || n.includes('g-')) return 'fa-brands fa-google';
+            return 'fa-solid fa-comment-sms';
+          };
+
+          const getServiceIconBg = (name) => {
+            if (!name) return 'bg-indigo-600 text-white';
+            const n = String(name).toLowerCase();
+            if (n.includes('facebook') || n.includes('fb')) return 'bg-[#1877F2] text-white';
+            if (n.includes('instagram') || n.includes('ig')) return 'bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white';
+            if (n.includes('whatsapp') || n.includes('wa')) return 'bg-[#25D366] text-white';
+            if (n.includes('telegram') || n.includes('tg')) return 'bg-[#24A1DE] text-white';
+            if (n.includes('google') || n.includes('g-')) return 'bg-[#4285F4] text-white';
+            return 'bg-indigo-600 text-white';
+          };
+
+          const getCountryName = (range) => {
+            if (!range) return 'International';
+            const rStr = String(range);
+            const clean = rStr.replace(/[^0-9]/g, '');
+            for (let len = 4; len >= 1; len--) {
+              const prefix = clean.substring(0, len);
+              if (countryPrefixes[prefix]) {
+                return countryPrefixes[prefix].name;
+              }
+            }
+            return 'International';
+          };
+
+          const getCountryFlag = (range) => {
+            if (!range) return '🌐';
+            const rStr = String(range);
+            const clean = rStr.replace(/[^0-9]/g, '');
+            for (let len = 4; len >= 1; len--) {
+              const prefix = clean.substring(0, len);
+              if (countryPrefixes[prefix]) {
+                return countryPrefixes[prefix].flag;
+              }
+            }
+            return '🌐';
+          };
+
+          const fetchLiveAccessData = async () => {
+            const token = localStorage.getItem('mino_session_token');
+            if (!token) return;
+            liveAccessLoading.value = true;
+            try {
+              const res = await fetch('user_api.php?action=live-access', {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const data = await res.json();
+              if (data && data.data && Array.isArray(data.data.services)) {
+                serverLiveAccessServices.value = data.data.services.map(svc => ({
+                  name: svc.sid || 'Generic',
+                  ranges: (svc.ranges || []).map(rCode => ({
+                    code: rCode,
+                    country: getCountryName(rCode)
+                  })),
+                  totalHits: (svc.ranges || []).length
+                }));
+              }
+            } catch (e) {}
+            liveAccessLoading.value = false;
+          };
+
+          const liveAccessData = computed(() => {
+            if (Array.isArray(serverLiveAccessServices.value) && serverLiveAccessServices.value.length > 0) {
+              return serverLiveAccessServices.value;
+            }
+
+            const logs = Array.isArray(liveLogs.value) ? liveLogs.value : [];
+            const groups = {};
+
+            logs.forEach(log => {
+              if (!log || !log.service || !log.range) return;
+
+              let sName = log.service.trim();
+              sName = sName.charAt(0).toUpperCase() + sName.slice(1).toLowerCase();
+              if (sName === 'Wa') sName = 'WhatsApp';
+              if (sName === 'Fb') sName = 'Facebook';
+              if (sName === 'Tg') sName = 'Telegram';
+              if (sName === 'Ig') sName = 'Instagram';
+
+              if (!groups[sName]) groups[sName] = {};
+
+              const rCode = log.range.trim();
+              if (!groups[sName][rCode]) {
+                groups[sName][rCode] = {
+                  code: rCode,
+                  country: log.country || getCountryName(rCode),
+                  count: 0
+                };
+              }
+              groups[sName][rCode].count++;
+            });
+
+            return Object.keys(groups).map(sName => {
+              const rangesList = Object.values(groups[sName]);
+              return {
+                name: sName,
+                ranges: rangesList,
+                totalHits: rangesList.reduce((sum, r) => sum + r.count, 0)
+              };
+            });
+          });
+
+          const activeRangesCount = computed(() => {
+            let total = 0;
+            if (Array.isArray(liveAccessData.value)) {
+              liveAccessData.value.forEach(s => {
+                if (s && Array.isArray(s.ranges)) total += s.ranges.length;
+              });
+            }
+            return total;
+          });
+
+          const filteredLiveAccessServices = computed(() => {
+            const list = Array.isArray(liveAccessData.value) ? liveAccessData.value : [];
+            const q = liveAccessSearchQuery.value ? liveAccessSearchQuery.value.toLowerCase().trim() : '';
+            if (!q) return list;
+            return list.filter(svc => 
+              svc && svc.name && (
+                svc.name.toLowerCase().includes(q) || 
+                (Array.isArray(svc.ranges) && svc.ranges.some(r => r && ((r.code && r.code.toLowerCase().includes(q)) || (r.country && r.country.toLowerCase().includes(q)))))
+              )
+            );
+          });
+
+          const serviceDemandChartStyle = computed(() => {
+            const list = Array.isArray(liveAccessData.value) ? liveAccessData.value : [];
+            const total = list.reduce((sum, s) => sum + (s.totalHits || (Array.isArray(s.ranges) ? s.ranges.length : 1)), 0);
+            if (total === 0) {
+              return { background: 'conic-gradient(#6366f1 0% 100%)' };
+            }
+
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#64748b'];
+            let cumulativePercent = 0;
+            const gradients = [];
+
+            list.forEach((svc, idx) => {
+              const hits = svc.totalHits || (Array.isArray(svc.ranges) ? svc.ranges.length : 1);
+              const percent = (hits / total) * 100;
+              const color = colors[idx % colors.length];
+              gradients.push(`${color} ${cumulativePercent}% ${cumulativePercent + percent}%`);
+              cumulativePercent += percent;
+            });
+
+            return { background: `conic-gradient(${gradients.join(', ')})` };
+          });
+
+          const getOtpsList = (alloc) => {
+            if (!alloc || !alloc.otp) return [];
+            return String(alloc.otp).split(/[\s,;/]+/).filter(x => x.trim().length > 0);
+          };
+
+          const triggerToast = (msg, title = "Number copied") => {
+            toastTitle.value = title;
+            toastMessage.value = msg;
+            showToast.value = true;
+            setTimeout(() => {
+              showToast.value = false;
+            }, 2800);
+          };
+
+          // ⚡ COPY WITH BROWSER COPY-BLOCK HANDLER
+          const copyToClipboard = (text, titleDesc = "Number copied", key = null) => {
+            if (!text) return;
+
+            const doSuccess = () => {
+              triggerToast(text, titleDesc);
+              if (key) {
+                copiedStates.value[key] = true;
+                setTimeout(() => { copiedStates.value[key] = false; }, 2000);
+              }
+            };
+
+            const doBlocked = () => {
+              triggerToast("নাম্বার কপি ব্লক করা হয়েছে ব্রাউজার থেকে", "Copy Blocked!");
+            };
+
+            if (navigator.clipboard && window.isSecureContext) {
+              navigator.clipboard.writeText(text).then(() => {
+                doSuccess();
+              }).catch(() => {
+                fallbackCopyText(text, doSuccess, doBlocked);
+              });
+            } else {
+              fallbackCopyText(text, doSuccess, doBlocked);
+            }
+          };
+
+          const fallbackCopyText = (text, onSuccess, onError) => {
+            try {
+              const textArea = document.createElement("textarea");
+              textArea.value = text;
+              textArea.style.position = "fixed";
+              textArea.style.left = "-999999px";
+              textArea.style.top = "-999999px";
+              document.body.appendChild(textArea);
+              textArea.focus();
+              textArea.select();
+              const successful = document.execCommand('copy');
+              document.body.removeChild(textArea);
+              if (successful) {
+                onSuccess();
+              } else {
+                onError();
+              }
+            } catch (err) {
+              onError();
+            }
+          };
+
+          const navigateMobile = (tabName) => {
+            currentTab.value = tabName;
+            mobileMenuOpen.value = false;
+          };
+
+          const filterByDate = (items, filterType, dateKey = 'createdAt') => {
+            if (!Array.isArray(items)) return [];
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
+            const sevenDaysAgo = todayStart - 7 * 24 * 60 * 60 * 1000;
+            const fifteenDaysAgo = todayStart - 15 * 24 * 60 * 60 * 1000;
+            const thirtyDaysAgo = todayStart - 30 * 24 * 60 * 60 * 1000;
+
+            return items.filter(item => {
+              if (!item || !item[dateKey]) return false;
+              const itemTime = new Date(item[dateKey]).getTime();
+              if (filterType === 'today') {
+                return itemTime >= todayStart;
+              } else if (filterType === 'yesterday') {
+                return itemTime >= yesterdayStart && itemTime < todayStart;
+              } else if (filterType === '7days') {
+                return itemTime >= sevenDaysAgo;
+              } else if (filterType === '15days') {
+                return itemTime >= fifteenDaysAgo;
+              } else if (filterType === '30days') {
+                return itemTime >= thirtyDaysAgo;
+              } else {
+                return true;
+              }
+            });
+          };
+
+          const filteredAllocations = computed(() => {
+            if (!Array.isArray(allocations.value)) return [];
+            const q = (searchQuery.value || '').toLowerCase().trim();
+            if (!q) return allocations.value;
+            return allocations.value.filter(alloc => 
+              alloc && (
+                (alloc.number && String(alloc.number).includes(q)) || 
+                (alloc.country && String(alloc.country).toLowerCase().includes(q)) ||
+                (alloc.operator && String(alloc.operator).toLowerCase().includes(q))
+              )
+            );
+          });
+
+          const activeAllocationsCount = computed(() => {
+            if (!Array.isArray(allocations.value)) return 0;
+            return allocations.value.filter(a => a && a.status === 'active').length;
+          });
+
+          const paginatedAllocations = computed(() => {
+            if (!Array.isArray(filteredAllocations.value)) return [];
+            const start = (currentPage.value - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            return filteredAllocations.value.slice(start, end);
+          });
+
+          const totalPages = computed(() => {
+            if (!Array.isArray(filteredAllocations.value)) return 1;
+            return Math.ceil(filteredAllocations.value.length / itemsPerPage) || 1;
+          });
+
+          const prevPage = () => {
+            if (currentPage.value > 1) currentPage.value--;
+          };
+
+          const nextPage = () => {
+            if (currentPage.value < totalPages.value) currentPage.value++;
+          };
+
+          const fetchUserAllocationsOnly = async () => {
+            const token = localStorage.getItem('mino_session_token');
+            if (!token || !profile.value) return;
+
+            try {
+              const allocRes = await fetch('user_api.php?action=user-allocations', {
+                headers: { 
+                  'Authorization': `Bearer ${token}`,
+                  'X-MINO-API-KEY': profile.value.api_key || ''
+                }
+              });
+              const allocData = await allocRes.json();
+              if (allocData && allocData.status === 'success') {
+                const fetchedAllocations = Array.isArray(allocData.allocations) ? allocData.allocations : [];
+                
+                let hasNewLiveOtp = false;
+                let latestOtpMessage = '';
+
+                fetchedAllocations.forEach(newAlloc => {
+                  if (newAlloc && newAlloc.status === 'completed') {
+                    const allocId = newAlloc.id || newAlloc.number;
+                    if (!knownCompletedIds.has(allocId)) {
+                      knownCompletedIds.add(allocId);
+                      if (!isInitialCompletedLoad) {
+                        hasNewLiveOtp = true;
+                        latestOtpMessage = newAlloc.number + " · " + (newAlloc.otp || 'OTP Received');
+                        newAlloc.justHit = true;
+                        setTimeout(() => {
+                          newAlloc.justHit = false;
+                        }, 3000);
+                      }
+                    }
+                  }
+                });
+
+                if (isInitialCompletedLoad) {
+                  isInitialCompletedLoad = false;
+                } else if (hasNewLiveOtp) {
+                  playBeep();
+                  triggerToast(latestOtpMessage, "🎉 New OTP Received");
+                }
+
+                allocations.value = fetchedAllocations;
+                localStorage.setItem('mino_cached_allocations', JSON.stringify(fetchedAllocations));
+                updateTimers();
+              }
+            } catch (e) {}
+          };
+
+          const refreshAllocations = async () => {
+            if (isRefreshingAllocations.value) return;
+            isRefreshingAllocations.value = true;
+            await fetchUserAllocationsOnly();
+            triggerToast("Allocations synced!", "List Refreshed");
+            isRefreshingAllocations.value = false;
+          };
+
+          const updateTimers = () => {
+            if (!Array.isArray(allocations.value)) return;
+            allocations.value.forEach(alloc => {
+              if (alloc && alloc.status === 'active') {
+                const createdAt = alloc.createdAt ? new Date(alloc.createdAt) : null;
+                if (createdAt && !isNaN(createdAt.getTime())) {
+                  const elapsedSeconds = Math.floor((new Date() - createdAt) / 1000);
+                  const remaining = Math.max(0, 1190 - elapsedSeconds);
+                  alloc.timeLeft = remaining;
+                  if (remaining === 0) {
+                    alloc.status = 'expired';
+                  }
+                } else {
+                  alloc.timeLeft = 0;
+                }
+              } else if (alloc) {
+                alloc.timeLeft = 0;
+              }
+            });
+          };
+
+          // ⚡ 1-SECOND FAST SYNC POLLING
+          let isFetchingGeneral = false;
+          let isFetchingConsole = false;
+          let isFetchingLiveAccess = false;
+
+          const pollGeneralData = async () => {
+            if (!pollingActive || isFetchingGeneral) return;
+            isFetchingGeneral = true;
+            try {
+              await fetchGeneralData();
+            } catch (e) {
+            } finally {
+              isFetchingGeneral = false;
+              if (pollingActive) {
+                generalTimer = setTimeout(pollGeneralData, 1000); // 1 Second Fast Polling
+              }
+            }
+          };
+
+          const pollConsoleData = async () => {
+            if (!pollingActive || isFetchingConsole) return;
+            isFetchingConsole = true;
+            try {
+              await fetchConsoleData();
+            } catch (e) {
+            } finally {
+              isFetchingConsole = false;
+              if (pollingActive) {
+                consoleTimer = setTimeout(pollConsoleData, 2000);
+              }
+            }
+          };
+
+          const pollLiveAccessData = async () => {
+            if (!pollingActive || isFetchingLiveAccess) return;
+            isFetchingLiveAccess = true;
+            try {
+              await fetchLiveAccessData();
+            } catch (e) {
+            } finally {
+              isFetchingLiveAccess = false;
+              if (pollingActive) {
+                liveAccessTimer = setTimeout(pollLiveAccessData, 6000);
+              }
+            }
+          };
+
+          const startPolling = () => {
+            stopPolling();
+            pollingActive = true;
+            pollGeneralData();
+            pollConsoleData();
+            pollLiveAccessData();
+            fetchUserWithdrawals();
+          };
+
+          const stopPolling = () => {
+            pollingActive = false;
+            if (generalTimer) clearTimeout(generalTimer);
+            if (consoleTimer) clearTimeout(consoleTimer);
+            if (liveAccessTimer) clearTimeout(liveAccessTimer);
+          };
+
+          const mergeLogs = (newLogs) => {
+            if (!Array.isArray(newLogs)) return;
+            newLogs.forEach(newLog => {
+              if (!newLog || !newLog.range) return;
+              const key = `${newLog.range}_${newLog.service}_${newLog.time}`;
+              const exists = liveLogs.value.some(existingLog => 
+                existingLog && `${existingLog.range}_${existingLog.service}_${existingLog.time}` === key
+              );
+              if (!exists) {
+                liveLogs.value.unshift(newLog);
+              }
+            });
+            liveLogs.value.sort((a, b) => (b.time || 0) - (a.time || 0));
+            if (liveLogs.value.length > 150) {
+              liveLogs.value = liveLogs.value.slice(0, 150);
+            }
+          };
+
+          const topApps = computed(() => {
+            const counts = {};
+            let total = 0;
+            const logs = Array.isArray(liveLogs.value) ? liveLogs.value : [];
+            logs.forEach(log => {
+              if (log) {
+                const serviceName = log.service || 'SMS Service';
+                counts[serviceName] = (counts[serviceName] || 0) + 1;
+                total++;
+              }
+            });
+            const list = Object.keys(counts).map(key => {
+              return {
+                name: key,
+                count: counts[key],
+                percentage: total > 0 ? Math.round((counts[key] / total) * 100) : 0
+              };
+            });
+            list.sort((a, b) => b.count - a.count);
+            return { list: list.slice(0, 4), total };
+          });
+
+          const fetchConsoleData = async () => {
+            const token = localStorage.getItem('mino_session_token');
+            if (!token) return;
+            try {
+              const consoleRes = await fetch('main_api.php?action=live-console', {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const consoleData = await consoleRes.json();
+              if (consoleData && consoleData.status === 'success') {
+                mergeLogs(consoleData.data);
+              }
+            } catch (e) {}
+          };
+
+          const fetchUserWithdrawals = async () => {
+            const token = localStorage.getItem('mino_session_token');
+            if (!token) return;
+            try {
+              const res = await fetch('user_api.php?action=user-withdrawals', {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const data = await res.json();
+              if (data && data.status === 'success') {
+                withdrawalsHistory.value = data.withdrawals || [];
+              }
+            } catch (e) {}
+          };
+
+          const filteredWithdrawals = computed(() => {
+            return filterByDate(withdrawalsHistory.value, withdrawHistoryFilter.value, 'createdAt');
+          });
+
+          const filteredAllocationsForSummary = computed(() => {
+            return filterByDate(allocations.value, summaryFilter.value, 'createdAt');
+          });
+
+          const summaryStats = computed(() => {
+            const list = Array.isArray(filteredAllocationsForSummary.value) ? filteredAllocationsForSummary.value : [];
+            const total = list.length;
+            const success = list.filter(a => a && a.status === 'completed').length;
+            const failed = list.filter(a => a && (a.status === 'expired' || (a.status === 'active' && a.timeLeft === 0))).length;
+            const successRate = total > 0 ? ((success / total) * 100).toFixed(1) : '0.0';
+            const failRate = total > 0 ? ((failed / total) * 100).toFixed(1) : '0.0';
+            return { total, success, failed, successRate, failRate };
+          });
+
+          const fetchGeneralData = async () => {
+            const token = localStorage.getItem('mino_session_token');
+            if (!token) {
+              return;
+            }
+
+            try {
+              const profileRes = await fetch('user_api.php?action=me', {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              
+              if (profileRes.status === 401 || profileRes.status === 402) {
+                signOut();
+                return;
+              }
+
+              if (!profileRes.ok) {
+                return;
+              }
+
+              const profileData = await profileRes.json();
+              if (profileData && profileData.status === 'success') {
+                if (profileData.user.role === 'agent') {
+                  window.location.href = 'agent_manager.php';
+                  return;
+                }
+                user.value = profileData.user;
+                profile.value = profileData.user;
+                announcement.value = profileData.announcement;
+                
+                if (profileData.user.wallet_address && !walletAddressInput.value) {
+                  walletAddressInput.value = profileData.user.wallet_address;
+                }
+                
+                if (profileData.user.telegram_username && !profileTelegramUsername.value) {
+                  profileTelegramUsername.value = profileData.user.telegram_username;
+                }
+              } else {
+                localStorage.removeItem('mino_session_token');
+                user.value = null;
+                profile.value = null;
+              }
+            } catch (e) {}
+
+            fetchUserAllocationsOnly();
+
+            try {
+              const mRes = await fetch('user_api.php?action=withdrawal-methods', {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const mData = await mRes.json();
+              if (mData && mData.status === 'success') {
+                withdrawalMethods.value = mData.methods || [];
+              }
+            } catch(e) {}
+
+            if (profile.value) {
+              try {
+                const otpRes = await fetch('success_otp.php', {
+                  headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'X-MINO-API-KEY': profile.value.api_key || ''
+                  }
+                });
+                const otpData = await otpRes.json();
+                if (otpData && otpData.status === 'success') {
+                  successOtps.value = Array.isArray(otpData.data) ? otpData.data : [];
+                }
+              } catch (e) {}
+            }
+
+            try {
+              const boardRes = await fetch('user_api.php?action=leaderboard', {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const boardData = await boardRes.json();
+              if (boardData && boardData.status === 'success') {
+                leaderboardData.value.today = boardData.today || [];
+                leaderboardData.value.weekly = boardData.weekly || [];
+                leaderboardData.value.lifetime = boardData.lifetime || [];
+                personalRank.value = boardData.user_rank || 0;
+                personalOtpCount.value = boardData.user_count || 0;
+              }
+            } catch (e) {}
+
+            try {
+              const ratesRes = await fetch('user_api.php?action=service-rates');
+              const ratesData = await ratesRes.json();
+              if (ratesData && ratesData.status === 'success') {
+                serviceRates.value = ratesData.rates || {};
+              }
+            } catch (e) {}
+          };
+
+          const handleUpdateWallet = async () => {
+            const token = localStorage.getItem('mino_session_token');
+            if (!token || !walletAddressInput.value.trim()) return;
+            
+            walletLoading.value = true;
+            try {
+              const res = await fetch('user_api.php?action=update-wallet', {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ wallet_address: walletAddressInput.value })
+              });
+              const data = await res.json();
+              if (data.status === 'success') {
+                triggerToast(walletAddressInput.value, "Wallet address updated");
+                fetchGeneralData();
+              } else {
+                alert(data.message);
+              }
+            } catch (e) {
+              alert("Failed to update wallet address.");
+            }
+            walletLoading.value = false;
+          };
+
+          const handleGenerateApiKey = async () => {
+            const token = localStorage.getItem('mino_session_token');
+            if (!token) return;
+            
+            apiGenLoading.value = true;
+            try {
+              const res = await fetch('user_api.php?action=generate-key', {
+                method: 'POST',
+                headers: { 
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              const data = await res.json();
+              if (data.status === 'success') {
+                triggerToast(data.message, "API Key Status");
+                fetchGeneralData();
+              } else {
+                alert(data.message);
+              }
+            } catch (e) {
+              alert("Could not generate API Access Key.");
+            }
+            apiGenLoading.value = false;
+          };
+
+          const submitWithdrawal = async () => {
+            const token = localStorage.getItem('mino_session_token');
+            if (!token) return;
+            if (withdrawAmount.value < 50) {
+              alert("মিনিমাম উইথড্র ৫০ টাকা হতে হবে।");
+              return;
+            }
+            if (!withdrawMethod.value) {
+              alert("পেমেন্ট মেথড সিলেক্ট করুন।");
+              return;
+            }
+            try {
+              const res = await fetch('user_api.php?action=withdraw', {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  amount: withdrawAmount.value,
+                  method: withdrawMethod.value,
+                  address: profile.value.wallet_address,
+                  withdraw_pin: withdrawPinInput.value
+                })
+              });
+              const data = await res.json();
+              if (data.status === 'success') {
+                triggerToast("৳" + withdrawAmount.value + " · " + withdrawMethod.value, "Withdrawal Requested");
+                withdrawAmount.value = '';
+                withdrawPinInput.value = '';
+                fetchGeneralData();
+              } else {
+                alert(data.message);
+              }
+            } catch (e) {
+              alert("An error occurred while submitting withdrawal request.");
+            }
+          };
+
+          const runLiveApiTest = async () => {
+            if (!profile.value?.api_key) {
+              alert("Please generate an API Key first.");
+              return;
+            }
+            testApiLoading.value = true;
+            testApiResponse.value = null;
+            try {
+              let url = '';
+              if (selectedTestApi.value === 'getnum') {
+                const postRes = await fetch(`getnumber`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    api_key: profile.value.api_key,
+                    rid: testRange.value
+                  })
+                });
+                const postData = await postRes.json();
+                testApiResponse.value = JSON.stringify(postData, null, 2);
+                testApiLoading.value = false;
+                return;
+              } else if (selectedTestApi.value === 'liveaccess') {
+                url = `liveaccess?api_key=${profile.value.api_key}`;
+              } else if (selectedTestApi.value === 'success-otp') {
+                url = `success_otp?api_key=${profile.value.api_key}`;
+              } else if (selectedTestApi.value === 'console') {
+                url = `console?api_key=${profile.value.api_key}`;
+              } else if (selectedTestApi.value === 'check') {
+                url = `check?api_key=${profile.value.api_key}&number=${testRange.value}`;
+              }
+              const res = await fetch(url, {
+                headers: { 'mauthapi': profile.value.api_key }
+              });
+              const data = await res.json();
+              testApiResponse.value = JSON.stringify(data, null, 2);
+            } catch (e) {
+              testApiResponse.value = "API Request failed.";
+            }
+            testApiLoading.value = false;
+          };
+
+          const handleAuth = async () => {
+            authLoading.value = true;
+            const url = isRegistering.value ? 'user_api.php?action=register' : 'user_api.php?action=login';
+            const payload = isRegistering.value ? {
+              name: authName.value,
+              email: authEmail.value,
+              password: authPassword.value,
+              agent_email: authAgentEmail.value
+            } : {
+              email: authEmail.value,
+              password: authPassword.value
+            };
+
+            try {
+              const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              const data = await res.json();
+              if (data.status === 'success') {
+                localStorage.setItem('mino_session_token', data.token);
+                
+                if (data.user) {
+                  user.value = data.user;
+                  profile.value = data.user;
+                }
+                
+                triggerToast(data.user?.email || "Connected", isRegistering.value ? "Account Created" : "Logged In");
+                fetchGeneralData();
+                startPolling();
+              } else {
+                alert(data.message || "Authentication failed.");
+              }
+            } catch (e) {
+              alert("Authentication failed. Check your network connection.");
+            }
+            authLoading.value = false;
+          };
+
+          const signOut = () => {
+            stopPolling();
+            localStorage.removeItem('mino_session_token');
+            user.value = null;
+            profile.value = null;
+          };
+
+          // ⚡ INSTANT ALLOCATION WITH AUTO-RETRIED BACKEND
+          const handleGetNumber = async () => {
+            loadingNumber.value = true;
+            const token = localStorage.getItem('mino_session_token');
+            try {
+              if (rid.value) {
+                localStorage.setItem('mino_last_rid', rid.value.trim());
+              }
+
+              const res = await fetch('getnumber', {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  api_key: profile.value?.api_key || '',
+                  rid: rid.value,
+                  national_format: nationalFormat.value ? '1' : '0',
+                  remove_plus: removePlus.value ? '1' : '0'
+                })
+              });
+              const data = await res.json();
+              if (data.status === 'success' || data.success === true) {
+                const num = data.number || data.data?.full_number;
+                const country = data.country || data.data?.country || 'Mozambique';
+                const operator = data.operator || data.data?.operator || 'mCel';
+
+                const newAlloc = {
+                  id: data.id || ('alloc_' + Date.now()),
+                  number: num,
+                  rid: rid.value,
+                  status: 'active',
+                  country: country,
+                  operator: operator,
+                  createdAt: new Date().toISOString(),
+                  timeLeft: 1190,
+                  otp: '',
+                  message: '',
+                  justHit: false
+                };
+                
+                allocations.value.unshift(newAlloc);
+                localStorage.setItem('mino_cached_allocations', JSON.stringify(allocations.value));
+                currentPage.value = 1;
+                
+                copyToClipboard(num, country + " · " + operator, 'new_num_' + newAlloc.id);
+                fetchGeneralData();
+              } else {
+                alert(data.message || data.error || "No numbers available on this range.");
+              }
+            } catch (e) {
+              alert("Error requesting number.");
+            }
+            loadingNumber.value = false;
+          };
+
+          const saveProfileChanges = async () => {
+            const token = localStorage.getItem('mino_session_token');
+            if (!token) return;
+            profileTelegramLoading.value = true;
+            try {
+              const res = await fetch('user_api.php?action=update-profile', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  telegram_username: profileTelegramUsername.value
+                })
+              });
+              const data = await res.json();
+              if (data.status === 'success') {
+                triggerToast(profileTelegramUsername.value || "Updated", "Profile Saved");
+                fetchGeneralData();
+              } else {
+                alert(data.message);
+              }
+            } catch (e) {
+              alert("Could not update profile fields.");
+            }
+            profileTelegramLoading.value = false;
+          };
+
+          const formatTime = (seconds) => {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+          };
+
+          const formatTimestamp = (timestamp) => {
+            if (!timestamp) return 'N/A';
+            const d = new Date(timestamp);
+            return d.toLocaleString();
+          };
+
+          watch(currentTab, (newTab) => {
+            if (newTab === 'live-access') {
+              fetchLiveAccessData();
+            }
+          });
+
+          onMounted(() => {
+            userLoaded.value = true;
+
+            const token = localStorage.getItem('mino_session_token');
+            if (token) {
+              startPolling();
+            }
+            setInterval(updateTimers, 1000);
+          });
+
+          return {
+            userLoaded, user, profile, authName, authEmail, authPassword, authAgentEmail, isRegistering, authLoading,
+            currentTab, announcement, mobileMenuOpen, navigateMobile, rid, nationalFormat, removePlus, activeNumber, activeCountry, activeOperator, otpResult, loadingNumber, isRefreshingAllocations, refreshAllocations, liveLogs, successOtps,
+            allocations, currentPage, itemsPerPage, paginatedAllocations, totalPages, prevPage, nextPage, searchQuery, activeAllocationsCount,
+            showToast, toastTitle, toastMessage, copyToClipboard, decodeHtml, walletAddressInput, walletLoading, handleUpdateWallet,
+            handleAuth, signOut, handleGetNumber, formatTime, formatTimestamp,
+            apiGenLoading, handleGenerateApiKey, selectedTestApi, runLiveApiTest, testRange, testApiLoading, testApiResponse, apiBaseUrl,
+            barColors, dotColors, topApps, leaderboardTab, leaderboardData, personalRank, personalOtpCount,
+            withdrawAmount, withdrawMethod, withdrawalsHistory, withdrawHistoryFilter, filteredWithdrawals, submitWithdrawal,
+            summaryFilter, summaryStats, serviceRates,
+            liveAccessSearchQuery, openAccordions, toggleServiceAccordion, isAccordionOpen,
+            serverLiveAccessServices, liveAccessLoading, fetchLiveAccessData, activeRangesCount,
+            copiedStates,
+            getServiceIcon, getServiceIconBg, getCountryName, getCountryFlag, filteredLiveAccessServices, serviceDemandChartStyle,
+            countryPrefixes, getOtpsList, withdrawalMethods,
+            profileTelegramUsername, profileTelegramLoading, saveProfileChanges, withdrawPinInput
+          };
+        }
+      }).mount('#app');
+    } catch (e) {
+      console.error("Vue Mount Error:", e);
+    }
+  </script>
+</body>
+</html>
